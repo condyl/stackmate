@@ -69,7 +69,7 @@ def new_command():
                 
                 if click.confirm("\nWould you like to proceed with this stack?"):
                     template = TEMPLATES["custom"](project_name, analysis)
-                    template.generate()
+                    await template.generate()
                     
             except Exception as e:
                 click.echo(f"Error during AI analysis: {str(e)}")
@@ -82,7 +82,7 @@ def new_command():
             click.echo(f"Using stack template: {stack}")
             template_class = TEMPLATES[stack]
             template = template_class(project_name)
-            template.generate()
+            await template.generate()
         else:
             click.echo("No stack specified. Please use --stack or --describe option.")
             click.echo("\nAvailable stacks:")
@@ -93,37 +93,30 @@ def new_command():
 def add_command():
     @cli.command()
     @click.argument('feature')
+    @click.option('--project-dir', default='.', help='Project directory')
     @async_command
-    async def add(feature: str):
-        """Add a feature to your project."""
+    async def add(feature: str, project_dir: str):
+        """Add a feature to an existing project."""
         click.echo(f"Adding feature: {feature}")
-        try:
-            _, generator = get_ai_components()
-            # TODO: Implement feature addition logic
-            click.echo("Feature addition coming soon!")
-        except Exception as e:
-            click.echo(f"Error adding feature: {str(e)}")
+        # Feature addition logic here
+        pass
     return add
 
 def customize_command():
     @cli.command()
+    @click.option('--project-dir', default='.', help='Project directory')
     @async_command
-    async def customize():
-        """Customize your project using AI."""
-        try:
-            analyzer, generator = get_ai_components()
-            # TODO: Implement customization logic
-            click.echo("AI customization coming soon!")
-        except Exception as e:
-            click.echo(f"Error during customization: {str(e)}")
+    async def customize(project_dir: str):
+        """Customize an existing project."""
+        click.echo("Customizing project...")
+        # Customization logic here
+        pass
     return customize
 
-# Register commands
-new = new_command()
-add = add_command()
-customize = customize_command()
-
 def main():
+    cli.add_command(new_command())
+    cli.add_command(add_command())
+    cli.add_command(customize_command())
     cli()
 
 if __name__ == "__main__":

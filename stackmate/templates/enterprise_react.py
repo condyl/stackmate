@@ -42,12 +42,12 @@ class EnterpriseReactTemplate(BaseTemplate):
             "prettier": "^3.1.0",
         }
 
-    def generate(self) -> None:
+    async def generate(self) -> None:
         """Generate an Enterprise React project structure."""
         self.create_project_directory()
         
         # 1. Create package.json with additional scripts
-        self.create_package_json({
+        await self.create_package_json({
             "scripts": {
                 "dev": "next dev",
                 "build": "next build",

@@ -6,11 +6,13 @@ from abc import ABC, abstractmethod
 import json
 import os
 from typing import Dict, List, Any
+from ..utils.dependency_manager import DependencyManager
 
 class BaseTemplate(ABC):
     def __init__(self, project_name: str):
         self.project_name = project_name
         self.project_dir = os.path.abspath(project_name)
+        self.dependency_manager = DependencyManager()
 
     @property
     @abstractmethod
@@ -25,7 +27,7 @@ class BaseTemplate(ABC):
         pass
 
     @abstractmethod
-    def generate(self) -> None:
+    async def generate(self) -> None:
         """Generate the project structure and files."""
         pass
 
@@ -45,8 +47,33 @@ class BaseTemplate(ABC):
         with open(full_path, 'w') as f:
             f.write(content)
 
-    def create_package_json(self, extra_fields: Dict[str, Any] = None) -> None:
+    async def create_package_json(self, extra_fields: Dict[str, Any] = None) -> None:
         """Create a package.json file with the project's dependencies."""
+        # Analyze dependencies for compatibility and updates
+        deps_analysis = await self.dependency_manager.analyze_dependencies(self.dependencies)
+        dev_deps_analysis = await self.dependency_manager.analyze_dependencies(self.dev_dependencies)
+
+        # Print warnings and recommendations
+        if deps_analysis["compatibility_warnings"] or deps_analysis["version_updates"]:
+            print("\nDependency Analysis:")
+            print("===================")
+            
+            if deps_analysis["compatibility_warnings"]:
+                print("\nCompatibility Warnings:")
+                for warning in deps_analysis["compatibility_warnings"]:
+                    print(f"- {warning}")
+            
+            if deps_analysis["version_updates"]:
+                print("\nVersion Updates:")
+                for update in deps_analysis["version_updates"]:
+                    print(f"- {update}")
+            
+            if deps_analysis["recommendations"]:
+                print("\nRecommendations:")
+                for rec in deps_analysis["recommendations"]:
+                    print(f"- {rec}")
+
+        # Create package.json with optimized dependencies
         package_json = {
             "name": self.project_name,
             "version": "0.1.0",
@@ -57,11 +84,26 @@ class BaseTemplate(ABC):
                 "start": "next start",
                 "lint": "next lint"
             },
-            "dependencies": self.dependencies,
-            "devDependencies": self.dev_dependencies
+            "dependencies": deps_analysis["updated_dependencies"],
+            "devDependencies": dev_deps_analysis["updated_dependencies"]
         }
 
         if extra_fields:
             package_json.update(extra_fields)
 
-        self.create_file('package.json', json.dumps(package_json, indent=2)) 
+        self.create_file('package.json', json.dumps(package_json, indent=2))
+
+        # Create .npmrc for better dependency management
+        npmrc_content = """
+# Ensure consistent dependency versions across the project
+save-exact=true
+
+# Improve installation performance
+prefer-offline=true
+cache-min=3600
+
+# Security settings
+audit=true
+fund=false
+        """.strip()
+        self.create_file('.npmrc', npmrc_content) 

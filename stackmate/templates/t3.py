@@ -42,71 +42,68 @@ class T3Template(BaseTemplate):
             "@typescript-eslint/eslint-plugin": "^6.18.0",
         }
 
-    def generate(self) -> None:
-        """Generate a T3 stack project structure."""
+    async def generate(self) -> None:
+        """Generate the project structure."""
         self.create_project_directory()
         
-        # 1. Create package.json with additional scripts
-        self.create_package_json({
-            "scripts": {
-                "dev": "next dev",
-                "build": "next build",
-                "start": "next start",
-                "lint": "next lint",
-                "prisma:studio": "prisma studio",
-                "prisma:generate": "prisma generate",
-                "prisma:migrate": "prisma migrate dev",
-                "postinstall": "prisma generate"
-            }
-        })
-
-        # 2. Create TypeScript configuration
+        # Create package.json with smart dependency management
+        await self.create_package_json()
+        
+        # Create configuration files
         self.create_file('tsconfig.json', '''{
   "compilerOptions": {
-    "target": "es2017",
+    "target": "es5",
     "lib": ["dom", "dom.iterable", "esnext"],
     "allowJs": true,
-    "checkJs": true,
     "skipLibCheck": true,
     "strict": true,
-    "forceConsistentCasingInFileNames": true,
     "noEmit": true,
     "esModuleInterop": true,
     "module": "esnext",
-    "moduleResolution": "node",
+    "moduleResolution": "bundler",
     "resolveJsonModule": true,
     "isolatedModules": true,
     "jsx": "preserve",
     "incremental": true,
-    "noUncheckedIndexedAccess": true,
-    "baseUrl": ".",
+    "plugins": [
+      {
+        "name": "next"
+      }
+    ],
     "paths": {
       "@/*": ["./src/*"]
     }
   },
-  "include": [
-    ".eslintrc.cjs",
-    "next-env.d.ts",
-    "**/*.ts",
-    "**/*.tsx",
-    "**/*.cjs",
-    "**/*.mjs"
-  ],
+  "include": ["next-env.d.ts", "**/*.ts", "**/*.tsx", ".next/types/**/*.ts"],
   "exclude": ["node_modules"]
 }''')
 
-        # 3. Create Next.js configuration
-        self.create_file('next.config.mjs', '''/** @type {import("next").NextConfig} */
-const config = {
+        self.create_file('next.config.js', '''/** @type {import('next').NextConfig} */
+const nextConfig = {
   reactStrictMode: true,
-  i18n: {
-    locales: ["en"],
-    defaultLocale: "en",
-  },
-};
-export default config;''')
+}
 
-        # 4. Create Prisma schema
+module.exports = nextConfig''')
+
+        self.create_file('tailwind.config.js', '''/** @type {import('tailwindcss').Config} */
+module.exports = {
+  content: [
+    "./src/**/*.{js,ts,jsx,tsx}",
+  ],
+  theme: {
+    extend: {},
+  },
+  plugins: [],
+}''')
+
+        self.create_file('postcss.config.js', '''module.exports = {
+  plugins: {
+    tailwindcss: {},
+    autoprefixer: {},
+  },
+}''')
+
+        # Create Prisma schema
         self.create_file('prisma/schema.prisma', '''generator client {
   provider = "prisma-client-js"
 }
@@ -116,14 +113,6 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-model Example {
-  id        String   @id @default(cuid())
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-}
-
-// NextAuth.js Models
-// https://next-auth.js.org/schemas/models
 model Account {
   id                String  @id @default(cuid())
   userId            String
@@ -137,7 +126,8 @@ model Account {
   scope             String?
   id_token          String? @db.Text
   session_state     String?
-  user              User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([provider, providerAccountId])
 }
@@ -168,7 +158,7 @@ model VerificationToken {
   @@unique([identifier, token])
 }''')
 
-        # 5. Set up tRPC
+        # Create tRPC setup
         self.create_file('src/server/api/trpc.ts', '''import { initTRPC, TRPCError } from "@trpc/server";
 import { type CreateNextContextOptions } from "@trpc/server/adapters/next";
 import { type Session } from "next-auth";
@@ -224,128 +214,14 @@ const enforceUserIsAuthed = t.middleware(({ ctx, next }) => {
 
 export const protectedProcedure = t.procedure.use(enforceUserIsAuthed);''')
 
-        # Add example router
-        self.create_file('src/server/api/root.ts', '''import { createTRPCRouter } from "@/server/api/trpc";
-import { exampleRouter } from "@/server/api/routers/example";
-
-export const appRouter = createTRPCRouter({
-  example: exampleRouter,
-});
-
-export type AppRouter = typeof appRouter;''')
-
-        # Add example router implementation
-        self.create_file('src/server/api/routers/example.ts', '''import { z } from "zod";
-import { createTRPCRouter, publicProcedure, protectedProcedure } from "@/server/api/trpc";
-
-export const exampleRouter = createTRPCRouter({
-  hello: publicProcedure
-    .input(z.object({ text: z.string() }))
-    .query(({ input }) => {
-      return {
-        greeting: `Hello ${input.text}`,
-      };
-    }),
-
-  getSecretMessage: protectedProcedure.query(() => {
-    return "you can now see this secret message!";
-  }),
-});''')
-
-        # Add tRPC shared utilities
-        self.create_file('src/trpc/shared.ts', '''import { type inferRouterInputs, type inferRouterOutputs } from "@trpc/server";
-import { type AppRouter } from "@/server/api/root";
-import { QueryClient } from "@tanstack/react-query";
-
-export const queryClient = new QueryClient();
-
-export function getBaseUrl() {
-  if (typeof window !== "undefined") return "";
-  if (process.env.VERCEL_URL) return `https://${process.env.VERCEL_URL}`;
-  return `http://localhost:${process.env.PORT ?? 3000}`;
-}
-
-export function getUrl() {
-  return `${getBaseUrl()}/api/trpc`;
-}
-
-/**
- * Inference helper for inputs.
- *
- * @example type HelloInput = RouterInputs['example']['hello']
- */
-export type RouterInputs = inferRouterInputs<AppRouter>;
-
-/**
- * Inference helper for outputs.
- *
- * @example type HelloOutput = RouterOutputs['example']['hello']
- */
-export type RouterOutputs = inferRouterOutputs<AppRouter>;''')
-
-        # Update tRPC client setup with imports
-        self.create_file('src/trpc/react.tsx', '''import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { createTRPCReact } from "@trpc/react-query";
-import { loggerLink } from "@trpc/client";
-import { httpBatchLink } from "@trpc/client";
-import { type AppRouter } from "@/server/api/root";
-import { getUrl, queryClient } from "./shared";
-
-export const api = createTRPCReact<AppRouter>();
-
-export function TRPCReactProvider(props: {
-  children: React.ReactNode;
-  headers: Headers | null;
-}) {
-  return (
-    <QueryClientProvider client={queryClient}>
-      <api.Provider
-        client={api.createClient({
-          links: [
-            loggerLink({
-              enabled: (opts) =>
-                process.env.NODE_ENV === "development" ||
-                (opts.direction === "down" && opts.result instanceof Error),
-            }),
-            httpBatchLink({
-              url: getUrl(),
-              headers() {
-                const heads = new Map(props.headers);
-                heads.set("x-trpc-source", "react");
-                return Object.fromEntries(heads);
-              },
-            }),
-          ],
-        })}
-      >
-        {props.children}
-      </api.Provider>
-    </QueryClientProvider>
-  );
-}''')
-
-        # Update tRPC server utils with imports
-        self.create_file('src/trpc/server.ts', '''import { httpBatchLink } from "@trpc/client";
-import { createTRPCProxyClient } from "@trpc/client";
-import { type AppRouter } from "@/server/api/root";
-import { getUrl } from "./shared";
-
-export const api = createTRPCProxyClient<AppRouter>({
-  links: [
-    httpBatchLink({
-      url: getUrl(),
-    }),
-  ],
-});''')
-
-        # 6. Set up NextAuth
-        self.create_file('src/server/auth.ts', '''import { type GetServerSidePropsContext } from "next";
+        # Create NextAuth setup
+        self.create_file('src/server/auth.ts', '''import { PrismaAdapter } from "@next-auth/prisma-adapter";
+import { type GetServerSidePropsContext } from "next";
 import {
   getServerSession,
-  type NextAuthOptions,
   type DefaultSession,
+  type NextAuthOptions,
 } from "next-auth";
-import { PrismaAdapter } from "@next-auth/prisma-adapter";
 import { prisma } from "@/server/db";
 
 declare module "next-auth" {
@@ -367,7 +243,9 @@ export const authOptions: NextAuthOptions = {
     }),
   },
   adapter: PrismaAdapter(prisma),
-  providers: [], // Add your providers here
+  providers: [
+    // Add providers here
+  ],
 };
 
 export const getServerAuthSession = (ctx: {
@@ -377,7 +255,7 @@ export const getServerAuthSession = (ctx: {
   return getServerSession(ctx.req, ctx.res, authOptions);
 };''')
 
-        # 7. Set up Prisma client
+        # Create database client
         self.create_file('src/server/db.ts', '''import { PrismaClient } from "@prisma/client";
 
 const globalForPrisma = globalThis as unknown as {
@@ -388,81 +266,146 @@ export const prisma =
   globalForPrisma.prisma ??
   new PrismaClient({
     log:
-      process.env.NODE_ENV === "development"
-        ? ["query", "error", "warn"]
-        : ["error"],
+      process.env.NODE_ENV === "development" ? ["query", "error", "warn"] : ["error"],
   });
 
 if (process.env.NODE_ENV !== "production") globalForPrisma.prisma = prisma;''')
 
-        # 8. Create basic app structure
-        self.create_file('src/app/layout.tsx', '''import { type Metadata } from "next";
-import { headers } from "next/headers";
-import { TRPCReactProvider } from "@/trpc/react";
-import "@/styles/globals.css";
+        # Create basic app structure
+        self.create_file('src/app/layout.tsx', '''import { type Metadata } from 'next'
+import { Inter } from 'next/font/google'
+import './globals.css'
+
+const inter = Inter({ subsets: ['latin'] })
 
 export const metadata: Metadata = {
-  title: "T3 App",
-  description: "Generated by Stackmate",
-};
+  title: 'T3 Stack App',
+  description: 'Generated by Stackmate',
+}
 
 export default function RootLayout({
   children,
 }: {
-  children: React.ReactNode;
+  children: React.ReactNode
 }) {
   return (
     <html lang="en">
-      <body>
-        <TRPCReactProvider headers={headers()}>{children}</TRPCReactProvider>
-      </body>
+      <body className={inter.className}>{children}</body>
     </html>
-  );
+  )
 }''')
 
-        self.create_file('src/app/page.tsx', '''import { getServerAuthSession } from "@/server/auth";
-import { api } from "@/trpc/server";
+        self.create_file('src/app/globals.css', '''@tailwind base;
+@tailwind components;
+@tailwind utilities;''')
 
-export default async function Home() {
-  const session = await getServerAuthSession();
-
+        self.create_file('src/app/page.tsx', '''export default function Home() {
   return (
-    <main className="flex min-h-screen flex-col items-center justify-center">
-      <div className="container flex flex-col items-center justify-center gap-12 px-4 py-16">
-        <h1 className="text-5xl font-extrabold tracking-tight sm:text-[5rem]">
-          T3 App
-        </h1>
-        <div className="flex flex-col items-center gap-2">
-          {session?.user ? (
-            <p className="text-2xl">
-              Logged in as {session.user.name}
-            </p>
-          ) : (
-            <p className="text-2xl">
-              Not logged in
-            </p>
-          )}
-        </div>
-      </div>
+    <main className="flex min-h-screen flex-col items-center justify-center p-24">
+      <h1 className="text-4xl font-bold">Welcome to T3 Stack</h1>
+      <p className="mt-4 text-xl">Get started by editing src/app/page.tsx</p>
     </main>
-  );
+  )
 }''')
 
-        # 9. Create environment files
-        self.create_file('.env.example', '''# Since the ".env" file is gitignored, you can use the ".env.example"
-# file to commit your env vars and use it as a reference
-DATABASE_URL="postgresql://postgres:postgres@localhost:5432/t3-app"
+        # Create README.md
+        self.create_file('README.md', f'''# {self.project_name}
 
-# Next Auth
-# You can generate the secret via 'openssl rand -base64 32' on Linux
-NEXTAUTH_SECRET=""
-NEXTAUTH_URL="http://localhost:3000"''')
+A full-stack application built with the T3 Stack.
 
-        self.create_file('.env', '''DATABASE_URL="postgresql://postgres:postgres@localhost:5432/t3-app"
+## Features
+
+- Next.js 14 with App Router
+- tRPC for type-safe APIs
+- Prisma for database access
+- NextAuth.js for authentication
+- TypeScript for type safety
+- Tailwind CSS for styling
+- Modern development tooling
+
+## Prerequisites
+
+- Node.js 18+
+- PostgreSQL database
+- npm or yarn
+
+## Getting Started
+
+1. Install dependencies:
+   ```bash
+   npm install
+   ```
+
+2. Set up your environment variables:
+   ```bash
+   cp .env.example .env
+   ```
+   Then edit `.env` with your database and authentication settings.
+
+3. Initialize the database:
+   ```bash
+   npx prisma generate
+   npx prisma db push
+   ```
+
+4. Run the development server:
+   ```bash
+   npm run dev
+   ```
+
+   Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+
+## Project Structure
+
+```
+{self.project_name}/
+├── prisma/             # Database schema and migrations
+├── src/
+│   ├── app/           # Next.js app router
+│   ├── server/        # Backend code
+│   │   ├── api/      # tRPC procedures
+│   │   ├── auth.ts   # Authentication setup
+│   │   └── db.ts     # Database client
+│   └── utils/        # Shared utilities
+└── public/           # Static assets
+```
+
+## Development
+
+- Run development server: `npm run dev`
+- Build for production: `npm run build`
+- Start production server: `npm run start`
+- Run linter: `npm run lint`
+- Update database schema: `npx prisma db push`
+
+## Learn More
+
+- [T3 Stack Documentation](https://create.t3.gg)
+- [Next.js Documentation](https://nextjs.org/docs)
+- [tRPC Documentation](https://trpc.io)
+- [Prisma Documentation](https://www.prisma.io/docs)
+- [NextAuth.js Documentation](https://next-auth.js.org)
+- [Tailwind CSS Documentation](https://tailwindcss.com/docs)
+
+## License
+
+This project is licensed under the MIT License.
+''')
+
+        # Create .env.example
+        self.create_file('.env.example', '''# Database URL for PostgreSQL
+DATABASE_URL="postgresql://user:password@localhost:5432/your-database"
+
+# NextAuth.js
 NEXTAUTH_SECRET="your-secret-key"
-NEXTAUTH_URL="http://localhost:3000"''')
+NEXTAUTH_URL="http://localhost:3000"
 
-        # 10. Create .gitignore
+# Add your OAuth provider credentials here
+# Example for GitHub:
+# GITHUB_ID="your-github-client-id"
+# GITHUB_SECRET="your-github-client-secret"''')
+
+        # Create .gitignore
         self.create_file('.gitignore', '''# dependencies
 /node_modules
 /.pnp
@@ -471,14 +414,9 @@ NEXTAUTH_URL="http://localhost:3000"''')
 # testing
 /coverage
 
-# database
-/prisma/db.sqlite
-/prisma/db.sqlite-journal
-
 # next.js
 /.next/
 /out/
-next-env.d.ts
 
 # production
 /build
@@ -491,69 +429,23 @@ next-env.d.ts
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
-.pnpm-debug.log*
 
 # local env files
-.env
 .env*.local
+.env
 
 # typescript
-*.tsbuildinfo''')
+*.tsbuildinfo
+next-env.d.ts
 
-        # 11. Create ESLint configuration
-        self.create_file('.eslintrc.json', '''{
-  "parser": "@typescript-eslint/parser",
-  "parserOptions": {
-    "project": "./tsconfig.json"
-  },
-  "plugins": ["@typescript-eslint"],
-  "extends": ["next/core-web-vitals", "plugin:@typescript-eslint/recommended"],
-  "rules": {
-    "@typescript-eslint/consistent-type-imports": [
-      "warn",
-      {
-        "prefer": "type-imports",
-        "fixStyle": "inline-type-imports"
-      }
-    ]
-  }
-}''')
-
-        # 12. Create Prettier configuration
-        self.create_file('.prettierrc', '''{
-  "semi": true,
-  "trailingComma": "es5",
-  "singleQuote": false,
-  "tabWidth": 2,
-  "useTabs": false
-}''')
-
-        # Add Tailwind CSS configuration
-        self.create_file('tailwind.config.ts', '''import { type Config } from "tailwindcss";
-
-export default {
-  content: ["./src/**/*.{js,ts,jsx,tsx}"],
-  theme: {
-    extend: {},
-  },
-  plugins: [],
-} satisfies Config;''')
-
-        self.create_file('postcss.config.js', '''module.exports = {
-  plugins: {
-    tailwindcss: {},
-    autoprefixer: {},
-  },
-}''')
-
-        self.create_file('src/styles/globals.css', '''@tailwind base;
-@tailwind components;
-@tailwind utilities;''')
+# Prisma
+/prisma/*.db
+/prisma/migrations/''')
 
         print(f"\nProject {self.project_name} created successfully!")
         print("\nNext steps:")
         print("1. cd", self.project_name)
         print("2. npm install")
-        print("3. Update .env with your database credentials and NextAuth secret")
-        print("4. npx prisma db push")
+        print("3. Set up your environment variables in .env")
+        print("4. Initialize the database with: npx prisma generate && npx prisma db push")
         print("5. npm run dev") 

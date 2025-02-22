@@ -41,14 +41,14 @@ class JamstackTemplate(BaseTemplate):
             "@tailwindcss/typography": "^0.5.10",
         }
 
-    def generate(self) -> None:
-        """Generate a JAMstack blog project structure."""
+    async def generate(self) -> None:
+        """Generate the project structure."""
         self.create_project_directory()
         
-        # 1. Create package.json
-        self.create_package_json()
-
-        # 2. Create TypeScript configuration
+        # Create package.json with smart dependency management
+        await self.create_package_json()
+        
+        # Create configuration files
         self.create_file('tsconfig.json', '''{
   "compilerOptions": {
     "target": "es5",
@@ -64,7 +64,6 @@ class JamstackTemplate(BaseTemplate):
     "isolatedModules": true,
     "jsx": "preserve",
     "incremental": true,
-    "baseUrl": ".",
     "plugins": [
       {
         "name": "next"
@@ -75,61 +74,99 @@ class JamstackTemplate(BaseTemplate):
       "contentlayer/generated": ["./.contentlayer/generated"]
     }
   },
-  "include": [
-    "next-env.d.ts",
-    "**/*.ts",
-    "**/*.tsx",
-    ".next/types/**/*.ts",
-    ".contentlayer/generated"
-  ],
+  "include": ["next-env.d.ts", "**/*.ts", "**/*.tsx", ".contentlayer/generated"],
   "exclude": ["node_modules"]
 }''')
 
-        # 3. Create Next.js configuration with Contentlayer
-        self.create_file('next.config.js', '''const { withContentlayer } = require('next-contentlayer');
+        self.create_file('next.config.js', '''const { withContentlayer } = require('next-contentlayer')
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
-  swcMinify: true,
-};
+}
 
-module.exports = withContentlayer(nextConfig);''')
+module.exports = withContentlayer(nextConfig)''')
 
-        # 4. Configure Contentlayer
-        self.create_file('contentlayer.config.ts', '''import { defineDocumentType, makeSource } from 'contentlayer/source-files';
-import readingTime from 'reading-time';
-import rehypeAutolinkHeadings from 'rehype-autolink-headings';
-import rehypePrettyCode from 'rehype-pretty-code';
-import rehypeSlug from 'rehype-slug';
-import remarkGfm from 'remark-gfm';
+        self.create_file('tailwind.config.js', '''/** @type {import('tailwindcss').Config} */
+module.exports = {
+  content: [
+    "./src/**/*.{js,ts,jsx,tsx}",
+    "./content/**/*.{md,mdx}",
+  ],
+  darkMode: 'class',
+  theme: {
+    extend: {
+      typography: {
+        DEFAULT: {
+          css: {
+            maxWidth: '65ch',
+            color: 'inherit',
+            a: {
+              color: 'inherit',
+              textDecoration: 'none',
+              fontWeight: '500',
+            },
+            'h2,h3,h4': {
+              'scroll-margin-top': '100px',
+            },
+            code: { color: 'inherit' },
+          },
+        },
+      },
+    },
+  },
+  plugins: [
+    require('@tailwindcss/typography'),
+  ],
+}''')
+
+        self.create_file('postcss.config.js', '''module.exports = {
+  plugins: {
+    tailwindcss: {},
+    autoprefixer: {},
+  },
+}''')
+
+        self.create_file('contentlayer.config.ts', '''import { defineDocumentType, makeSource } from 'contentlayer/source-files'
+import remarkGfm from 'remark-gfm'
+import rehypePrettyCode from 'rehype-pretty-code'
+import rehypeSlug from 'rehype-slug'
+import rehypeAutolinkHeadings from 'rehype-autolink-headings'
 
 export const Post = defineDocumentType(() => ({
   name: 'Post',
   filePathPattern: `posts/**/*.mdx`,
   contentType: 'mdx',
   fields: {
-    title: { type: 'string', required: true },
-    date: { type: 'date', required: true },
-    description: { type: 'string', required: true },
-    tags: { type: 'list', of: { type: 'string' }, default: [] },
-    image: { type: 'string', required: false },
+    title: {
+      type: 'string',
+      required: true,
+    },
+    date: {
+      type: 'date',
+      required: true,
+    },
+    description: {
+      type: 'string',
+      required: true,
+    },
+    published: {
+      type: 'boolean',
+      default: true,
+    },
+    tags: {
+      type: 'list',
+      of: { type: 'string' },
+      default: [],
+    },
   },
   computedFields: {
     slug: {
       type: 'string',
-      resolve: (doc) => doc._raw.sourceFileName.replace(/\.mdx$/, ''),
-    },
-    url: {
-      type: 'string',
-      resolve: (doc) => `/blog/posts/${doc._raw.sourceFileName.replace(/\.mdx$/, '')}`,
-    },
-    readingTime: {
-      type: 'json',
-      resolve: (doc) => readingTime(doc.body.raw),
+      resolve: (doc) => doc._raw.flattenedPath.replace(/posts\/?/, ''),
     },
   },
-}));
+}))
 
 export default makeSource({
   contentDirPath: 'content',
@@ -154,313 +191,297 @@ export default makeSource({
       ],
     ],
   },
-});''')
+})''')
 
-        # 5. Configure Tailwind
-        self.create_file('tailwind.config.ts', '''import type { Config } from 'tailwindcss';
+        # Create basic app structure
+        self.create_file('src/app/layout.tsx', '''import { type Metadata } from 'next'
+import { Inter } from 'next/font/google'
+import { ThemeProvider } from '@/components/theme-provider'
+import './globals.css'
 
-const config: Config = {
-  darkMode: 'class',
-  content: [
-    './src/pages/**/*.{js,ts,jsx,tsx,mdx}',
-    './src/components/**/*.{js,ts,jsx,tsx,mdx}',
-    './src/app/**/*.{js,ts,jsx,tsx,mdx}',
-  ],
-  theme: {
-    extend: {
-      typography: {
-        DEFAULT: {
-          css: {
-            'code::before': {
-              content: '""',
-            },
-            'code::after': {
-              content: '""',
-            },
-          },
-        },
-      },
-    },
-  },
-  plugins: [require('@tailwindcss/typography')],
-};
-
-export default config;''')
-
-        self.create_file('postcss.config.js', '''module.exports = {
-  plugins: {
-    tailwindcss: {},
-    autoprefixer: {},
-  },
-}''')
-
-        # 6. Create example blog post
-        self.create_file('content/posts/hello-world.mdx', '''---
-title: Hello World
-date: 2024-01-01
-description: Welcome to my JAMstack blog built with Next.js, MDX, and Contentlayer.
-tags: [nextjs, mdx, contentlayer]
----
-
-# Hello World
-
-Welcome to my blog! This is a starter template for building a modern JAMstack blog using:
-
-- [Next.js](https://nextjs.org) - React framework
-- [MDX](https://mdxjs.com) - Markdown + JSX
-- [Contentlayer](https://contentlayer.dev) - Content SDK
-- [Tailwind CSS](https://tailwindcss.com) - Utility-first CSS
-
-## Code Example
-
-```typescript
-function greet(name: string) {
-  return `Hello, ${name}!`;
-}
-```
-
-## Features
-
-- ✨ MDX for content
-- 📚 Contentlayer for type-safe content
-- 🎨 Tailwind CSS for styling
-- 🔍 SEO optimized
-- 📱 Responsive design
-- 🚀 Fast build times''')
-
-        # 7. Create components
-        self.create_file('src/components/PostCard.tsx', '''import Link from 'next/link';
-import { format } from 'date-fns';
-import type { Post } from 'contentlayer/generated';
-
-export function PostCard(post: Post) {
-  return (
-    <div className="mb-8">
-      <h2 className="mb-1 text-xl">
-        <Link
-          href={post.url}
-          className="text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300"
-        >
-          {post.title}
-        </Link>
-      </h2>
-      <time dateTime={post.date} className="mb-2 block text-xs text-gray-600 dark:text-gray-400">
-        {format(new Date(post.date), 'MMMM dd, yyyy')}
-      </time>
-      <div className="text-sm text-gray-700 dark:text-gray-300">{post.description}</div>
-    </div>
-  );}''')
-
-        self.create_file('src/components/MDXComponents.tsx', '''import Image from 'next/image';
-import Link from 'next/link';
-
-export const MDXComponents = {
-  Image: (props: any) => <Image {...props} />,
-  a: ({ href = '', ...props }) => {
-    if (href.startsWith('http')) {
-      return <a href={href} target="_blank" rel="noopener noreferrer" {...props} />;
-    }
-    return <Link href={href} {...props} />;
-  },
-};''')
-
-        # 8. Create app structure
-        self.create_file('src/app/layout.tsx', '''import type { Metadata } from 'next';
-import { Inter } from 'next/font/google';
-import { ThemeProvider } from '@/components/ThemeProvider';
-import { ThemeToggle } from '@/components/ThemeToggle';
-import './globals.css';
-
-const inter = Inter({ subsets: ['latin'] });
+const inter = Inter({ subsets: ['latin'] })
 
 export const metadata: Metadata = {
-  title: 'My Blog',
-  description: 'A modern JAMstack blog built with Next.js and MDX',
-};
+  title: 'JAMstack Blog',
+  description: 'Generated by Stackmate',
+}
 
 export default function RootLayout({
   children,
 }: {
-  children: React.ReactNode;
+  children: React.ReactNode
 }) {
   return (
     <html lang="en" suppressHydrationWarning>
-      <body className={`${inter.className} bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100`}>
+      <body className={inter.className}>
         <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
-          <header className="mx-auto max-w-3xl px-4 py-4 flex justify-between items-center">
-            <h1 className="text-2xl font-bold">My Blog</h1>
-            <ThemeToggle />
-          </header>
-          <main className="mx-auto max-w-3xl px-4 py-8">
-            {children}
-          </main>
+          {children}
         </ThemeProvider>
       </body>
     </html>
-  );}''')
+  )
+}''')
 
         self.create_file('src/app/globals.css', '''@tailwind base;
 @tailwind components;
 @tailwind utilities;
 
-:root {
-  --foreground: theme('colors.gray.900');
-  --background: theme('colors.white');
-}
-
-[data-theme="dark"] {
-  --foreground: theme('colors.gray.100');
-  --background: theme('colors.gray.900');
-}
-
-body {
-  transition: background-color 0.3s ease, color 0.3s ease;
-}
-
-.prose {
-  @apply text-gray-900 dark:text-gray-100;
-  transition: color 0.3s ease;
-}
-
-.prose pre {
-  @apply bg-gray-100 dark:bg-gray-800 text-gray-900 dark:text-gray-100 rounded-lg overflow-x-auto;
-  transition: background-color 0.3s ease, color 0.3s ease;
-}
-
-.prose code {
-  @apply bg-gray-100 dark:bg-gray-800 text-gray-900 dark:text-gray-100 px-1 py-0.5 rounded-md;
-  transition: background-color 0.3s ease, color 0.3s ease;
-}
-
-.prose a {
-  @apply text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300;
-  transition: color 0.3s ease;
-}
-
-.prose h1 {
-  @apply text-gray-900 dark:text-gray-100;
-  transition: color 0.3s ease;
-}
-
-.prose h2 {
-  @apply text-gray-900 dark:text-gray-100 mt-8 mb-4;
-  transition: color 0.3s ease;
-}
-
-.prose h3 {
-  @apply text-gray-900 dark:text-gray-100 mt-6 mb-3;
-  transition: color 0.3s ease;
-}
-
-.prose strong {
-  @apply text-gray-900 dark:text-gray-100;
-  transition: color 0.3s ease;
-}
-
-.prose ol > li::marker {
-  @apply text-gray-600 dark:text-gray-400;
-  transition: color 0.3s ease;
-}
-
-.prose ul > li::marker {
-  @apply text-gray-600 dark:text-gray-400;
-  transition: color 0.3s ease;
-}''')
-
-        self.create_file('src/app/page.tsx', '''import { allPosts } from 'contentlayer/generated';
-import { PostCard } from '@/components/PostCard';
-
-export default function Home() {
-  const posts = allPosts.sort((a, b) => {
-    return new Date(b.date).getTime() - new Date(a.date).getTime();
-  });
-
-  return (
-    <div>
-      <h1 className="mb-8 text-3xl font-bold">Blog Posts</h1>
-      {posts.map((post, idx) => (
-        <PostCard key={idx} {...post} />
-      ))}
-    </div>
-  );}''')
-
-        self.create_file('src/app/blog/posts/[slug]/page.tsx', '''import { format } from 'date-fns';
-import { allPosts } from 'contentlayer/generated';
-import { getMDXComponent } from 'next-contentlayer/hooks';
-import { MDXComponents } from '@/components/MDXComponents';
-import type { Metadata } from 'next';
-
-export async function generateStaticParams() {
-  return allPosts.map((post) => ({
-    slug: post.slug,
-  }));
-}
-
-export async function generateMetadata({
-  params,
-}: {
-  params: { slug: string };
-}): Promise<Metadata> {
-  const post = allPosts.find((post) => post.slug === params.slug);
-
-  return {
-    title: post?.title,
-    description: post?.description,
-  };
-}
-
-export default function PostPage({ params }: { params: { slug: string } }) {
-  const post = allPosts.find((post) => post.slug === params.slug);
-
-  if (!post) {
-    return <div>Post not found</div>;
+@layer base {
+  :root {
+    --background: 0 0% 100%;
+    --foreground: 240 10% 3.9%;
   }
 
-  const Content = getMDXComponent(post.body.code);
+  .dark {
+    --background: 240 10% 3.9%;
+    --foreground: 0 0% 98%;
+  }
+}
 
-  return (
-    <article className="prose prose-lg mx-auto">
-      <h1>{post.title}</h1>
-      <div className="mb-8 text-sm text-gray-600 dark:text-gray-400">
-        <time dateTime={post.date}>
-          {format(new Date(post.date), 'MMMM dd, yyyy')}
-        </time>
-        <span className="mx-2">•</span>
-        <span>{post.readingTime.text}</span>
-      </div>
-      <Content components={MDXComponents} />
-    </article>
-  );}''')
-
-        # 9. Create RSS feed generation
-        self.create_file('src/app/feed.xml/route.ts', '''import { allPosts } from 'contentlayer/generated';
-import RSS from 'rss';
-
-export async function GET() {
-  const feed = new RSS({
-    title: 'My Blog',
-    description: 'A modern JAMstack blog built with Next.js and MDX',
-    site_url: 'https://yourdomain.com',
-    feed_url: 'https://yourdomain.com/feed.xml',
-  });
-
-  allPosts.map((post) => {
-    feed.item({
-      title: post.title,
-      description: post.description,
-      url: `https://yourdomain.com${post.url}`,
-      date: post.date,
-    });
-  });
-
-  return new Response(feed.xml({ indent: true }), {
-    headers: {
-      'Content-Type': 'application/xml',
-    },
-  });
+@layer base {
+  body {
+    @apply bg-background text-foreground;
+  }
 }''')
 
-        # 10. Create .gitignore
+        self.create_file('src/app/page.tsx', '''import { allPosts } from 'contentlayer/generated'
+import { compareDesc } from 'date-fns'
+
+export default function Home() {
+  const posts = allPosts.sort((a, b) =>
+    compareDesc(new Date(a.date), new Date(b.date))
+  )
+
+  return (
+    <main className="mx-auto max-w-4xl px-6 py-12">
+      <h1 className="text-4xl font-bold">Welcome to JAMstack Blog</h1>
+      <p className="mt-4 text-xl">A modern blog built with Next.js and MDX</p>
+      
+      <div className="mt-12">
+        <h2 className="text-2xl font-bold">Latest Posts</h2>
+        <div className="mt-6 grid gap-6">
+          {posts.map((post) => (
+            <article key={post.slug} className="group">
+              <h3 className="text-xl font-semibold">{post.title}</h3>
+              <p className="mt-2 text-gray-600 dark:text-gray-400">
+                {post.description}
+              </p>
+              <div className="mt-4 flex gap-2">
+                {post.tags.map((tag) => (
+                  <span
+                    key={tag}
+                    className="rounded-full bg-gray-100 px-3 py-1 text-sm dark:bg-gray-800"
+                  >
+                    {tag}
+                  </span>
+                ))}
+              </div>
+            </article>
+          ))}
+        </div>
+      </div>
+    </main>
+  )
+}''')
+
+        # Create theme provider component
+        self.create_file('src/components/theme-provider.tsx', '''import { createContext, useContext, useEffect, useState } from 'react'
+
+type Theme = 'dark' | 'light' | 'system'
+
+type ThemeProviderProps = {
+  children: React.ReactNode
+  defaultTheme?: Theme
+  storageKey?: string
+  attribute?: string
+  enableSystem?: boolean
+}
+
+type ThemeProviderState = {
+  theme: Theme
+  setTheme: (theme: Theme) => void
+}
+
+const ThemeProviderContext = createContext<ThemeProviderState | undefined>(
+  undefined
+)
+
+export function ThemeProvider({
+  children,
+  defaultTheme = 'system',
+  storageKey = 'theme',
+  attribute = 'data-theme',
+  enableSystem = true,
+  ...props
+}: ThemeProviderProps) {
+  const [theme, setTheme] = useState<Theme>(
+    () => (localStorage.getItem(storageKey) as Theme) || defaultTheme
+  )
+
+  useEffect(() => {
+    const root = window.document.documentElement
+
+    root.classList.remove('light', 'dark')
+
+    if (theme === 'system' && enableSystem) {
+      const systemTheme = window.matchMedia('(prefers-color-scheme: dark)')
+        .matches
+        ? 'dark'
+        : 'light'
+
+      root.classList.add(systemTheme)
+      return
+    }
+
+    root.classList.add(theme)
+  }, [theme, enableSystem])
+
+  const value = {
+    theme,
+    setTheme: (theme: Theme) => {
+      localStorage.setItem(storageKey, theme)
+      setTheme(theme)
+    },
+  }
+
+  return (
+    <ThemeProviderContext.Provider {...props} value={value}>
+      {children}
+    </ThemeProviderContext.Provider>
+  )
+}
+
+export const useTheme = () => {
+  const context = useContext(ThemeProviderContext)
+
+  if (context === undefined)
+    throw new Error('useTheme must be used within a ThemeProvider')
+
+  return context
+}''')
+
+        # Create example blog post
+        self.create_file('content/posts/hello-world.mdx', '''---
+title: Hello World
+date: 2024-01-01
+description: Welcome to my JAMstack blog built with Next.js, MDX, and Contentlayer.
+published: true
+tags: [next.js, mdx, contentlayer]
+---
+
+# Hello World
+
+Welcome to my JAMstack blog! This is a starter template that uses:
+
+- [Next.js](https://nextjs.org) for the framework
+- [MDX](https://mdxjs.com) for writing content
+- [Contentlayer](https://contentlayer.dev) for content management
+- [Tailwind CSS](https://tailwindcss.com) for styling
+- [next-themes](https://github.com/pacocoursey/next-themes) for dark mode
+
+## Features
+
+- ✨ MDX for content
+- 🎨 Syntax highlighting with rehype-pretty-code
+- 🌙 Dark mode with next-themes
+- 📱 Fully responsive
+- 🔍 SEO friendly
+- 📊 RSS feed
+- 🎯 Zero runtime JavaScript
+- ⚡️ Blazing fast page loads
+
+## Code Example
+
+```typescript
+function hello(name: string) {
+  console.log(`Hello, ${name}!`)
+}
+```
+
+## Next Steps
+
+1. Edit this post in `content/posts/hello-world.mdx`
+2. Add your own posts in the `content/posts` directory
+3. Customize the theme in `tailwind.config.js`
+4. Update the metadata in `src/app/layout.tsx`
+''')
+
+        # Create README.md
+        self.create_file('README.md', f'''# {self.project_name}
+
+A modern JAMstack blog built with Next.js, MDX, and Contentlayer.
+
+## Features
+
+- Next.js 13+ with App Router
+- MDX for content authoring
+- Contentlayer for type-safe content
+- Tailwind CSS for styling
+- Dark mode support
+- Syntax highlighting
+- RSS feed
+- SEO optimized
+- TypeScript support
+
+## Prerequisites
+
+- Node.js 18+
+- npm or yarn
+
+## Getting Started
+
+1. Install dependencies:
+   ```bash
+   npm install
+   ```
+
+2. Run the development server:
+   ```bash
+   npm run dev
+   ```
+
+   Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+
+## Project Structure
+
+```
+{self.project_name}/
+├── content/            # Blog posts and content
+│   └── posts/         # MDX blog posts
+├── src/
+│   ├── app/          # Next.js app router
+│   ├── components/   # React components
+│   └── styles/       # Global styles
+└── public/           # Static assets
+```
+
+## Writing Content
+
+1. Create new posts in the `content/posts` directory using MDX
+2. Add frontmatter with title, date, description, and tags
+3. Write your content using Markdown and MDX components
+4. Posts will be automatically built and rendered
+
+## Development
+
+- Run development server: `npm run dev`
+- Build for production: `npm run build`
+- Start production server: `npm run start`
+- Run linter: `npm run lint`
+
+## Learn More
+
+- [Next.js Documentation](https://nextjs.org/docs)
+- [MDX Documentation](https://mdxjs.com)
+- [Contentlayer Documentation](https://contentlayer.dev)
+- [Tailwind CSS Documentation](https://tailwindcss.com/docs)
+
+## License
+
+This project is licensed under the MIT License.
+''')
+
+        # Create .gitignore
         self.create_file('.gitignore', '''# dependencies
 /node_modules
 /.pnp
@@ -487,6 +508,7 @@ yarn-error.log*
 
 # local env files
 .env*.local
+.env
 
 # typescript
 *.tsbuildinfo
@@ -495,50 +517,8 @@ next-env.d.ts
 # contentlayer
 .contentlayer''')
 
-        # Create ThemeProvider component
-        self.create_file('src/components/ThemeProvider.tsx', '''"use client";
-
-import { ThemeProvider as NextThemeProvider } from "next-themes";
-import { type ThemeProviderProps } from "next-themes/dist/types";
-
-export function ThemeProvider({ children, ...props }: ThemeProviderProps) {
-  return <NextThemeProvider {...props}>{children}</NextThemeProvider>;
-}''')
-
-        # Create ThemeToggle component
-        self.create_file('src/components/ThemeToggle.tsx', '''"use client";
-
-import { useTheme } from "next-themes";
-import { useEffect, useState } from "react";
-
-export function ThemeToggle() {
-  const [mounted, setMounted] = useState(false);
-  const { theme, setTheme } = useTheme();
-
-  useEffect(() => {
-    setMounted(true);
-  }, []);
-
-  if (!mounted) {
-    return <div className="w-9 h-9" />; // Placeholder to prevent layout shift
-  }
-
-  return (
-    <button
-      onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
-      className="rounded-md bg-gray-200 p-2 hover:bg-gray-300 dark:bg-gray-800 dark:hover:bg-gray-700 transition-colors duration-200"
-      aria-label="Toggle theme"
-    >
-      <span className="text-xl">
-        {theme === "dark" ? "🌞" : "🌙"}
-      </span>
-    </button>
-  );
-}''')
-
         print(f"\nProject {self.project_name} created successfully!")
         print("\nNext steps:")
         print("1. cd", self.project_name)
         print("2. npm install")
-        print("3. npm run dev")
-        print("\nStart writing your blog posts in the content/posts directory using MDX!") 
+        print("3. npm run dev") 
