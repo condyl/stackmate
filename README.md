@@ -2,6 +2,8 @@
 
 A powerful CLI tool for generating modern web applications with AI-powered stack recommendations and best practices.
 
+Created during [Hack Canada 2025](https://hackcanada.org/).
+
 ## Features
 
 - 🤖 AI-powered stack analysis and recommendations
