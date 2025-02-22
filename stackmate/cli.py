@@ -6,6 +6,7 @@ from typing import Optional
 from functools import wraps
 from .templates import TEMPLATES, AVAILABLE_STACKS
 from .ai import StackAnalyzer, CodeGenerator
+from .features import AVAILABLE_FEATURES
 
 # Initialize AI components
 def get_ai_components():
@@ -92,14 +93,24 @@ def new_command():
 
 def add_command():
     @cli.command()
-    @click.argument('feature')
+    @click.argument('feature', type=click.Choice(list(AVAILABLE_FEATURES.keys())))
     @click.option('--project-dir', default='.', help='Project directory')
     @async_command
     async def add(feature: str, project_dir: str):
         """Add a feature to an existing project."""
-        click.echo(f"Adding feature: {feature}")
-        # Feature addition logic here
-        pass
+        click.echo(f"Adding {feature} to your project...")
+        
+        try:
+            # Get the feature handler
+            handler = AVAILABLE_FEATURES[feature]
+            
+            # Execute the handler
+            await handler(project_dir)
+            
+        except Exception as e:
+            click.echo(f"Error: {str(e)}")
+            return
+    
     return add
 
 def customize_command():
