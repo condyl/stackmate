@@ -22,7 +22,7 @@ class JamstackTemplate(BaseTemplate):
             "rehype-autolink-headings": "^7.1.0",
             "rehype-pretty-code": "^0.12.3",
             "rehype-slug": "^6.0.0",
-            "remark-gfm": "^4.0.0",
+            "remark-gfm": "^3.0.1",
             "rss": "^1.2.2",
             "next-themes": "^0.2.1",
         }
@@ -64,6 +64,7 @@ class JamstackTemplate(BaseTemplate):
     "isolatedModules": true,
     "jsx": "preserve",
     "incremental": true,
+    "baseUrl": ".",
     "plugins": [
       {
         "name": "next"
@@ -96,6 +97,41 @@ module.exports = {
   darkMode: 'class',
   theme: {
     extend: {
+      colors: {
+        border: 'hsl(var(--border))',
+        input: 'hsl(var(--input))',
+        ring: 'hsl(var(--ring))',
+        background: 'hsl(var(--background))',
+        foreground: 'hsl(var(--foreground))',
+        primary: {
+          DEFAULT: 'hsl(var(--primary))',
+          foreground: 'hsl(var(--primary-foreground))',
+        },
+        secondary: {
+          DEFAULT: 'hsl(var(--secondary))',
+          foreground: 'hsl(var(--secondary-foreground))',
+        },
+        destructive: {
+          DEFAULT: 'hsl(var(--destructive))',
+          foreground: 'hsl(var(--destructive-foreground))',
+        },
+        muted: {
+          DEFAULT: 'hsl(var(--muted))',
+          foreground: 'hsl(var(--muted-foreground))',
+        },
+        accent: {
+          DEFAULT: 'hsl(var(--accent))',
+          foreground: 'hsl(var(--accent-foreground))',
+        },
+        popover: {
+          DEFAULT: 'hsl(var(--popover))',
+          foreground: 'hsl(var(--popover-foreground))',
+        },
+        card: {
+          DEFAULT: 'hsl(var(--card))',
+          foreground: 'hsl(var(--card-foreground))',
+        },
+      },
       typography: {
         DEFAULT: {
           css: {
@@ -135,7 +171,7 @@ import rehypeAutolinkHeadings from 'rehype-autolink-headings'
 
 export const Post = defineDocumentType(() => ({
   name: 'Post',
-  filePathPattern: `posts/**/*.mdx`,
+  filePathPattern: 'posts/**/*.mdx',
   contentType: 'mdx',
   fields: {
     title: {
@@ -230,15 +266,53 @@ export default function RootLayout({
   :root {
     --background: 0 0% 100%;
     --foreground: 240 10% 3.9%;
+    --card: 0 0% 100%;
+    --card-foreground: 240 10% 3.9%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 240 10% 3.9%;
+    --primary: 240 5.9% 10%;
+    --primary-foreground: 0 0% 98%;
+    --secondary: 240 4.8% 95.9%;
+    --secondary-foreground: 240 5.9% 10%;
+    --muted: 240 4.8% 95.9%;
+    --muted-foreground: 240 3.8% 46.1%;
+    --accent: 240 4.8% 95.9%;
+    --accent-foreground: 240 5.9% 10%;
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 0 0% 98%;
+    --border: 240 5.9% 90%;
+    --input: 240 5.9% 90%;
+    --ring: 240 5.9% 10%;
+    --radius: 0.5rem;
   }
 
   .dark {
     --background: 240 10% 3.9%;
     --foreground: 0 0% 98%;
+    --card: 240 10% 3.9%;
+    --card-foreground: 0 0% 98%;
+    --popover: 240 10% 3.9%;
+    --popover-foreground: 0 0% 98%;
+    --primary: 0 0% 98%;
+    --primary-foreground: 240 5.9% 10%;
+    --secondary: 240 3.7% 15.9%;
+    --secondary-foreground: 0 0% 98%;
+    --muted: 240 3.7% 15.9%;
+    --muted-foreground: 240 5% 64.9%;
+    --accent: 240 3.7% 15.9%;
+    --accent-foreground: 0 0% 98%;
+    --destructive: 0 62.8% 30.6%;
+    --destructive-foreground: 0 0% 98%;
+    --border: 240 3.7% 15.9%;
+    --input: 240 3.7% 15.9%;
+    --ring: 240 4.9% 83.9%;
   }
 }
 
 @layer base {
+  * {
+    @apply border-border/50;
+  }
   body {
     @apply bg-background text-foreground;
   }
@@ -246,6 +320,7 @@ export default function RootLayout({
 
         self.create_file('src/app/page.tsx', '''import { allPosts } from 'contentlayer/generated'
 import { compareDesc } from 'date-fns'
+import Link from 'next/link'
 
 export default function Home() {
   const posts = allPosts.sort((a, b) =>
@@ -261,22 +336,28 @@ export default function Home() {
         <h2 className="text-2xl font-bold">Latest Posts</h2>
         <div className="mt-6 grid gap-6">
           {posts.map((post) => (
-            <article key={post.slug} className="group">
-              <h3 className="text-xl font-semibold">{post.title}</h3>
-              <p className="mt-2 text-gray-600 dark:text-gray-400">
-                {post.description}
-              </p>
-              <div className="mt-4 flex gap-2">
-                {post.tags.map((tag) => (
-                  <span
-                    key={tag}
-                    className="rounded-full bg-gray-100 px-3 py-1 text-sm dark:bg-gray-800"
-                  >
-                    {tag}
-                  </span>
-                ))}
-              </div>
-            </article>
+            <Link 
+              key={post.slug}
+              href={`/posts/${post.slug}`}
+              className="block group hover:bg-gray-50 dark:hover:bg-gray-900 p-6 rounded-lg transition"
+            >
+              <article>
+                <h3 className="text-xl font-semibold group-hover:text-primary">{post.title}</h3>
+                <p className="mt-2 text-gray-600 dark:text-gray-400">
+                  {post.description}
+                </p>
+                <div className="mt-4 flex gap-2">
+                  {post.tags.map((tag) => (
+                    <span
+                      key={tag}
+                      className="rounded-full bg-gray-100 px-3 py-1 text-sm dark:bg-gray-800"
+                    >
+                      {tag}
+                    </span>
+                  ))}
+                </div>
+              </article>
+            </Link>
           ))}
         </div>
       </div>
@@ -285,7 +366,9 @@ export default function Home() {
 }''')
 
         # Create theme provider component
-        self.create_file('src/components/theme-provider.tsx', '''import { createContext, useContext, useEffect, useState } from 'react'
+        self.create_file('src/components/theme-provider.tsx', '''"use client"
+
+import { createContext, useContext, useEffect, useState } from 'react'
 
 type Theme = 'dark' | 'light' | 'system'
 
@@ -314,9 +397,14 @@ export function ThemeProvider({
   enableSystem = true,
   ...props
 }: ThemeProviderProps) {
-  const [theme, setTheme] = useState<Theme>(
-    () => (localStorage.getItem(storageKey) as Theme) || defaultTheme
-  )
+  const [theme, setTheme] = useState<Theme>(defaultTheme)
+
+  useEffect(() => {
+    const savedTheme = localStorage.getItem(storageKey) as Theme
+    if (savedTheme) {
+      setTheme(savedTheme)
+    }
+  }, [storageKey])
 
   useEffect(() => {
     const root = window.document.documentElement
@@ -516,6 +604,89 @@ next-env.d.ts
 
 # contentlayer
 .contentlayer''')
+
+        # Create dynamic route for blog posts
+        self.create_file('src/app/posts/[slug]/page.tsx', '''import { allPosts } from 'contentlayer/generated'
+import { notFound } from 'next/navigation'
+import { Metadata } from 'next'
+import { format, parseISO } from 'date-fns'
+import { MDXContent } from '@/components/mdx-content'
+
+interface PostProps {
+  params: {
+    slug: string
+  }
+}
+
+async function getPost(slug: string) {
+  const post = allPosts.find((post) => post.slug === slug)
+
+  if (!post) {
+    notFound()
+  }
+
+  return post
+}
+
+export async function generateMetadata({ params }: PostProps): Promise<Metadata> {
+  const post = await getPost(params.slug)
+
+  return {
+    title: post.title,
+    description: post.description,
+  }
+}
+
+export async function generateStaticParams() {
+  return allPosts.map((post) => ({
+    slug: post.slug,
+  }))
+}
+
+export default async function PostPage({ params }: PostProps) {
+  const post = await getPost(params.slug)
+
+  return (
+    <article className="mx-auto max-w-4xl px-6 py-12">
+      <div className="mb-8">
+        <h1 className="text-4xl font-bold">{post.title}</h1>
+        <time dateTime={post.date} className="text-gray-600 dark:text-gray-400">
+          {format(parseISO(post.date), 'LLLL d, yyyy')}
+        </time>
+        <div className="mt-4 flex gap-2">
+          {post.tags.map((tag) => (
+            <span
+              key={tag}
+              className="rounded-full bg-gray-100 px-3 py-1 text-sm dark:bg-gray-800"
+            >
+              {tag}
+            </span>
+          ))}
+        </div>
+      </div>
+      <MDXContent code={post.body.code} />
+    </article>
+  )
+}''')
+
+        # Create MDX component
+        self.create_file('src/components/mdx-content.tsx', '''"use client"
+
+import { useMDXComponent } from 'next-contentlayer/hooks'
+
+interface MDXContentProps {
+  code: string
+}
+
+export function MDXContent({ code }: MDXContentProps) {
+  const MDXComponent = useMDXComponent(code)
+
+  return (
+    <div className="prose dark:prose-invert max-w-none">
+      <MDXComponent />
+    </div>
+  )
+}''')
 
         print(f"\nProject {self.project_name} created successfully!")
         print("\nNext steps:")
