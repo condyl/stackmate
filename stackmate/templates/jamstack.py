@@ -24,6 +24,7 @@ class JamstackTemplate(BaseTemplate):
             "rehype-slug": "^6.0.0",
             "remark-gfm": "^4.0.0",
             "rss": "^1.2.2",
+            "next-themes": "^0.2.1",
         }
 
     @property
@@ -159,6 +160,7 @@ export default makeSource({
         self.create_file('tailwind.config.ts', '''import type { Config } from 'tailwindcss';
 
 const config: Config = {
+  darkMode: 'class',
   content: [
     './src/pages/**/*.{js,ts,jsx,tsx,mdx}',
     './src/components/**/*.{js,ts,jsx,tsx,mdx}',
@@ -247,8 +249,7 @@ export function PostCard(post: Post) {
       </time>
       <div className="text-sm text-gray-700 dark:text-gray-300">{post.description}</div>
     </div>
-  );
-}''')
+  );}''')
 
         self.create_file('src/components/MDXComponents.tsx', '''import Image from 'next/image';
 import Link from 'next/link';
@@ -266,6 +267,8 @@ export const MDXComponents = {
         # 8. Create app structure
         self.create_file('src/app/layout.tsx', '''import type { Metadata } from 'next';
 import { Inter } from 'next/font/google';
+import { ThemeProvider } from '@/components/ThemeProvider';
+import { ThemeToggle } from '@/components/ThemeToggle';
 import './globals.css';
 
 const inter = Inter({ subsets: ['latin'] });
@@ -281,58 +284,87 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en">
+    <html lang="en" suppressHydrationWarning>
       <body className={`${inter.className} bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100`}>
-        <div className="mx-auto max-w-3xl px-4 py-8">
-          {children}
-        </div>
+        <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
+          <header className="mx-auto max-w-3xl px-4 py-4 flex justify-between items-center">
+            <h1 className="text-2xl font-bold">My Blog</h1>
+            <ThemeToggle />
+          </header>
+          <main className="mx-auto max-w-3xl px-4 py-8">
+            {children}
+          </main>
+        </ThemeProvider>
       </body>
     </html>
-  );
-}''')
+  );}''')
 
         self.create_file('src/app/globals.css', '''@tailwind base;
 @tailwind components;
 @tailwind utilities;
 
+:root {
+  --foreground: theme('colors.gray.900');
+  --background: theme('colors.white');
+}
+
+[data-theme="dark"] {
+  --foreground: theme('colors.gray.100');
+  --background: theme('colors.gray.900');
+}
+
+body {
+  transition: background-color 0.3s ease, color 0.3s ease;
+}
+
 .prose {
   @apply text-gray-900 dark:text-gray-100;
+  transition: color 0.3s ease;
 }
 
 .prose pre {
   @apply bg-gray-100 dark:bg-gray-800 text-gray-900 dark:text-gray-100 rounded-lg overflow-x-auto;
+  transition: background-color 0.3s ease, color 0.3s ease;
 }
 
 .prose code {
   @apply bg-gray-100 dark:bg-gray-800 text-gray-900 dark:text-gray-100 px-1 py-0.5 rounded-md;
+  transition: background-color 0.3s ease, color 0.3s ease;
 }
 
 .prose a {
   @apply text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300;
+  transition: color 0.3s ease;
 }
 
 .prose h1 {
   @apply text-gray-900 dark:text-gray-100;
+  transition: color 0.3s ease;
 }
 
 .prose h2 {
   @apply text-gray-900 dark:text-gray-100 mt-8 mb-4;
+  transition: color 0.3s ease;
 }
 
 .prose h3 {
   @apply text-gray-900 dark:text-gray-100 mt-6 mb-3;
+  transition: color 0.3s ease;
 }
 
 .prose strong {
   @apply text-gray-900 dark:text-gray-100;
+  transition: color 0.3s ease;
 }
 
 .prose ol > li::marker {
   @apply text-gray-600 dark:text-gray-400;
+  transition: color 0.3s ease;
 }
 
 .prose ul > li::marker {
   @apply text-gray-600 dark:text-gray-400;
+  transition: color 0.3s ease;
 }''')
 
         self.create_file('src/app/page.tsx', '''import { allPosts } from 'contentlayer/generated';
@@ -350,8 +382,7 @@ export default function Home() {
         <PostCard key={idx} {...post} />
       ))}
     </div>
-  );
-}''')
+  );}''')
 
         self.create_file('src/app/blog/posts/[slug]/page.tsx', '''import { format } from 'date-fns';
 import { allPosts } from 'contentlayer/generated';
@@ -399,8 +430,7 @@ export default function PostPage({ params }: { params: { slug: string } }) {
       </div>
       <Content components={MDXComponents} />
     </article>
-  );
-}''')
+  );}''')
 
         # 9. Create RSS feed generation
         self.create_file('src/app/feed.xml/route.ts', '''import { allPosts } from 'contentlayer/generated';
@@ -464,6 +494,47 @@ next-env.d.ts
 
 # contentlayer
 .contentlayer''')
+
+        # Create ThemeProvider component
+        self.create_file('src/components/ThemeProvider.tsx', '''"use client";
+
+import { ThemeProvider as NextThemeProvider } from "next-themes";
+import { type ThemeProviderProps } from "next-themes/dist/types";
+
+export function ThemeProvider({ children, ...props }: ThemeProviderProps) {
+  return <NextThemeProvider {...props}>{children}</NextThemeProvider>;
+}''')
+
+        # Create ThemeToggle component
+        self.create_file('src/components/ThemeToggle.tsx', '''"use client";
+
+import { useTheme } from "next-themes";
+import { useEffect, useState } from "react";
+
+export function ThemeToggle() {
+  const [mounted, setMounted] = useState(false);
+  const { theme, setTheme } = useTheme();
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  if (!mounted) {
+    return <div className="w-9 h-9" />; // Placeholder to prevent layout shift
+  }
+
+  return (
+    <button
+      onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
+      className="rounded-md bg-gray-200 p-2 hover:bg-gray-300 dark:bg-gray-800 dark:hover:bg-gray-700 transition-colors duration-200"
+      aria-label="Toggle theme"
+    >
+      <span className="text-xl">
+        {theme === "dark" ? "🌞" : "🌙"}
+      </span>
+    </button>
+  );
+}''')
 
         print(f"\nProject {self.project_name} created successfully!")
         print("\nNext steps:")
