@@ -96,28 +96,6 @@ stackmate/
 └── README.md          # Documentation
 ```
 
-## Development
-
-1. Install development dependencies:
-   ```bash
-   pip install -e ".[dev]"
-   ```
-
-2. Run tests:
-   ```bash
-   pytest
-   ```
-
-3. Format code:
-   ```bash
-   black stackmate
-   ```
-
-4. Check types:
-   ```bash
-   mypy stackmate
-   ```
-
 ## Troubleshooting
 
 ### Common Issues
