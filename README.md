@@ -50,15 +50,51 @@ Before you begin, ensure you have the following installed:
 
 ### Create a New Project
 
-1. Using AI Analysis:
+1. Interactive Mode (Recommended):
+   ```bash
+   stackmate new -i
+   ```
+   This launches an interactive interface where you can:
+   - Enter your project name
+   - Choose from available stacks using arrow keys
+   - Get detailed descriptions for each stack
+   - For custom stacks, describe your requirements in natural language
+
+2. Using AI Analysis:
    ```bash
    stackmate new my-app --describe "I need a modern web app with authentication, blog functionality, and a newsletter system"
    ```
 
-2. Using Pre-configured Templates:
+3. Using Pre-configured Templates:
    ```bash
    stackmate new my-app --stack modern-react
    ```
+
+### Interactive Interface Example
+
+```
+Stackmate - AI-Powered Tech Stack Generator
+Create modern web applications with best practices
+
+Use ↑/↓ arrows to select a stack, Enter to confirm
+
+Project name: my-app
+> modern-react    - Next.js + Tailwind + Shadcn
+  t3              - Full-Stack T3 Stack (Next.js, tRPC, Prisma, NextAuth)
+  enterprise-react - Enterprise-grade React setup
+  jamstack-blog   - JAMstack blog with MDX and Contentlayer
+  django          - Django + DRF + PostgreSQL
+  flask           - Flask + SQLAlchemy + PostgreSQL
+  fastapi         - FastAPI + Pydantic
+  expressjs       - Express.js + Node.js
+  custom          - AI-generated custom stack based on requirements
+```
+
+The interactive interface provides a user-friendly way to:
+- Navigate through available stacks using arrow keys
+- See detailed descriptions for each option
+- Create custom stacks with AI-powered analysis
+- Get immediate feedback during project creation
 
 ### Available Stack Templates
 
@@ -66,6 +102,10 @@ Before you begin, ensure you have the following installed:
 - `t3`: Full-Stack T3 Stack (Next.js, tRPC, Prisma, NextAuth)
 - `enterprise-react`: Enterprise-grade React setup
 - `jamstack-blog`: JAMstack blog with MDX and Contentlayer
+- `django`: Django + DRF + PostgreSQL
+- `flask`: Flask + SQLAlchemy + PostgreSQL
+- `fastapi`: FastAPI + Pydantic
+- `expressjs`: Express.js + Node.js
 - `custom`: AI-generated custom stack based on requirements
 
 ### Add Features to Existing Project

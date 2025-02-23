@@ -91,18 +91,46 @@ def async_command(f):
 
 @click.group()
 def cli():
-    """Stackmate - AI-Powered Tech Stack Generator"""
+    """Stackmate - AI-Powered Tech Stack Generator
+
+    Create modern web applications with best practices and AI-powered stack recommendations.
+    
+    Examples:
+        stackmate new -i                    Create a project using interactive mode
+        stackmate new my-app --stack t3     Create a T3 stack project
+        stackmate add auth                  Add authentication to existing project
+    """
     pass
 
 def new_command():
     @cli.command()
     @click.argument('project_name', required=False)
-    @click.option('--stack', type=click.Choice(AVAILABLE_STACKS), help='Choose a predefined stack template')
-    @click.option('--describe', help='Describe your project requirements in natural language')
-    @click.option('--interactive', '-i', is_flag=True, help='Use interactive mode')
+    @click.option('--stack', '-s',
+                 type=click.Choice(AVAILABLE_STACKS),
+                 help='Choose a predefined stack template (e.g., modern-react, t3, django)')
+    @click.option('--describe', '-d',
+                 help='Describe your project requirements in natural language for AI analysis')
+    @click.option('--interactive', '-i',
+                 is_flag=True,
+                 help='Use interactive mode with arrow key navigation and stack descriptions')
     @handle_errors
     def new(project_name: str = None, stack: Optional[str] = None, describe: Optional[str] = None, interactive: bool = False):
-        """Create a new project with the specified stack."""
+        """Create a new project with the specified stack.
+
+        Examples:
+            stackmate new -i                    Create using interactive mode
+            stackmate new my-app --stack t3     Create a T3 stack project
+            stackmate new my-app --describe "I need a modern web app with authentication"
+        
+        Available Stacks:
+            modern-react    Next.js + Tailwind + Shadcn
+            t3             Full-Stack T3 Stack
+            django         Django + DRF + PostgreSQL
+            flask          Flask + SQLAlchemy
+            fastapi        FastAPI + Pydantic
+            expressjs      Express.js + Node.js
+            custom         AI-generated custom stack
+        """
         if interactive:
             return run_interactive()
         elif not project_name:
@@ -209,11 +237,29 @@ async def _new(project_name: str, stack: Optional[str] = None, describe: Optiona
 
 def add_command():
     @cli.command()
-    @click.argument('feature', type=click.Choice(AVAILABLE_FEATURES))
-    @click.option('--project-dir', default='.', help='Project directory')
+    @click.argument('feature',
+                   type=click.Choice(list(AVAILABLE_FEATURES.keys())),
+                   required=True)
+    @click.option('--project-dir', '-d',
+                 default='.',
+                 help='Project directory (defaults to current directory)')
     @handle_errors
     def add(feature: str, project_dir: str):
-        """Add a feature to an existing project."""
+        """Add a feature to an existing project.
+
+        Examples:
+            stackmate add auth              Add authentication
+            stackmate add components        Add UI components
+            stackmate add tools             Add development tools
+
+        Available Features:
+            auth        Authentication (NextAuth.js, Clerk, or Firebase)
+            components  UI components (shadcn/ui or Material UI)
+            tools      Development tools (ESLint, Prettier, Jest)
+        
+        Options:
+            --project-dir, -d  Specify project directory (default: current directory)
+        """
         return asyncio.run(_add(feature, project_dir))
 
     return add
@@ -244,10 +290,29 @@ async def _add(feature: str, project_dir: str):
 
 def customize_command():
     @cli.command()
-    @click.option('--project-dir', default='.', help='Project directory')
+    @click.option('--project-dir', '-d',
+                 default='.',
+                 help='Project directory (defaults to current directory)')
+    @click.option('--ai', '-a',
+                 is_flag=True,
+                 help='Use AI to analyze and suggest customizations')
+    @click.option('--interactive', '-i',
+                 is_flag=True,
+                 help='Use interactive mode for customization')
     @handle_errors
-    def customize(project_dir: str):
-        """Customize an existing project."""
+    def customize(project_dir: str, ai: bool = False, interactive: bool = False):
+        """Customize an existing project with additional features and configurations.
+
+        Examples:
+            stackmate customize                 Basic customization
+            stackmate customize --ai            AI-powered customization
+            stackmate customize --interactive   Interactive customization
+
+        Options:
+            --project-dir, -d   Specify project directory
+            --ai, -a           Use AI for analysis and suggestions
+            --interactive, -i   Use interactive mode
+        """
         return asyncio.run(_customize(project_dir))
 
     return customize
