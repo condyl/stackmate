@@ -266,4 +266,173 @@ class StackAnalyzer:
         
         # Generate content synchronously
         response = self.model.generate_content(prompt)
-        return response.text  # Will be parsed as JSON by the caller 
+        return response.text  # Will be parsed as JSON by the caller
+
+    async def analyze_project(self, project_analysis: Dict) -> Dict:
+        """Analyze the current project setup and suggest improvements."""
+        deps = project_analysis.get("dependencies", {})
+        dev_deps = project_analysis.get("devDependencies", {})
+        scripts = project_analysis.get("scripts", {})
+
+        prompt = f"""You are a senior software architect analyzing a Node.js project. Analyze the following project setup and suggest improvements.
+
+Project Setup:
+Dependencies: {json.dumps(deps, indent=2)}
+Dev Dependencies: {json.dumps(dev_deps, indent=2)}
+Scripts: {json.dumps(scripts, indent=2)}
+
+Provide a detailed analysis in the following JSON format. Each suggestion should be specific and actionable:
+
+{{
+  "workflow_improvements": [
+    {{
+      "category": "Testing",
+      "suggestion": "Add Jest testing framework",
+      "priority": "high",
+      "implementation": "Run: npm install --save-dev jest @types/jest"
+    }}
+  ],
+  "dependency_updates": [
+    {{
+      "package": "react",
+      "current_version": "17.0.2",
+      "suggested_version": "18.2.0",
+      "reason": "Access to new features and performance improvements"
+    }}
+  ],
+  "performance_suggestions": [
+    {{
+      "area": "Bundle Size",
+      "issue": "Large initial bundle",
+      "solution": "Implement code splitting with dynamic imports",
+      "impact": "high"
+    }}
+  ],
+  "dx_improvements": [
+    {{
+      "category": "TypeScript",
+      "suggestion": "Enable strict mode",
+      "benefit": "Catch more potential bugs at compile time"
+    }}
+  ],
+  "best_practices": [
+    {{
+      "category": "Environment",
+      "current_state": "No .env.example file",
+      "recommendation": "Add .env.example with documentation"
+    }}
+  ]
+}}
+
+Focus on:
+1. Missing essential dependencies or tools
+2. Outdated versions that should be updated
+3. Performance optimizations
+4. Developer experience improvements
+5. Security concerns
+6. Best practices for modern web development
+
+Keep suggestions specific and actionable. Include exact commands or steps in implementation details where relevant.
+
+IMPORTANT: Ensure the response is a valid JSON object with the exact structure shown above. Do not include any text outside the JSON object."""
+
+        # Generate content synchronously
+        try:
+            response = self.model.generate_content(prompt)
+            
+            # Try to parse the response as JSON
+            try:
+                result = json.loads(response.text)
+            except json.JSONDecodeError as e:
+                # If parsing fails, try to clean up the response
+                cleaned_text = response.text.strip()
+                # Remove any markdown code block markers if present
+                if cleaned_text.startswith('```json'):
+                    cleaned_text = cleaned_text[7:]
+                if cleaned_text.startswith('```'):
+                    cleaned_text = cleaned_text[3:]
+                if cleaned_text.endswith('```'):
+                    cleaned_text = cleaned_text[:-3]
+                cleaned_text = cleaned_text.strip()
+                
+                try:
+                    result = json.loads(cleaned_text)
+                except json.JSONDecodeError:
+                    # If still can't parse, generate a basic analysis
+                    result = self._generate_basic_analysis(project_analysis)
+            
+            # Validate the structure of the response
+            required_keys = ["workflow_improvements", "dependency_updates", "performance_suggestions", 
+                           "dx_improvements", "best_practices"]
+            
+            if not all(key in result for key in required_keys):
+                result = self._generate_basic_analysis(project_analysis)
+            
+            return result
+            
+        except Exception as e:
+            return self._generate_basic_analysis(project_analysis)
+
+    def _generate_basic_analysis(self, project_analysis: Dict) -> Dict:
+        """Generate a basic analysis when AI response fails."""
+        deps = project_analysis.get("dependencies", {})
+        dev_deps = project_analysis.get("devDependencies", {})
+        
+        # Initialize the result structure
+        result = {
+            "workflow_improvements": [],
+            "dependency_updates": [],
+            "performance_suggestions": [],
+            "dx_improvements": [],
+            "best_practices": []
+        }
+        
+        # Add basic workflow improvements
+        if not any("test" in script for script in project_analysis.get("scripts", {}).keys()):
+            result["workflow_improvements"].append({
+                "category": "Testing",
+                "suggestion": "Add testing framework",
+                "priority": "high",
+                "implementation": "npm install --save-dev jest @types/jest"
+            })
+        
+        # Check for essential dev tools
+        essential_dev_tools = {
+            "typescript": "^5.0.0",
+            "eslint": "^8.0.0",
+            "prettier": "^3.0.0"
+        }
+        
+        for tool, version in essential_dev_tools.items():
+            if tool not in dev_deps:
+                result["dependency_updates"].append({
+                    "package": tool,
+                    "current_version": "not installed",
+                    "suggested_version": version,
+                    "reason": f"Essential development tool for code quality"
+                })
+        
+        # Add basic performance suggestion
+        result["performance_suggestions"].append({
+            "area": "Build",
+            "issue": "No build optimization configuration",
+            "solution": "Add build optimization settings",
+            "impact": "medium"
+        })
+        
+        # Add basic DX improvement
+        if "typescript" not in dev_deps:
+            result["dx_improvements"].append({
+                "category": "TypeScript",
+                "suggestion": "Add TypeScript support",
+                "benefit": "Better type safety and developer experience"
+            })
+        
+        # Add basic best practice
+        result["best_practices"].append({
+            "category": "Documentation",
+            "current_state": "Missing or incomplete documentation",
+            "recommendation": "Add README.md with setup and development instructions"
+        })
+        
+        return result 

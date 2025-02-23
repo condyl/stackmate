@@ -275,45 +275,243 @@ def customize_command():
     @click.option('--ai', '-a',
                  is_flag=True,
                  help='Use AI to analyze and suggest customizations')
-    @click.option('--interactive', '-i',
-                 is_flag=True,
-                 help='Use interactive mode for customization')
     @handle_errors
-    def customize(project_dir: str, ai: bool = False, interactive: bool = False):
+    def customize(project_dir: str, ai: bool = False):
         """Customize an existing project with additional features and configurations.
 
         Examples:
-            stackmate customize                 Basic customization
-            stackmate customize --ai            AI-powered customization
-            stackmate customize --interactive   Interactive customization
-
-        Options:
-            --project-dir, -d   Specify project directory
-            --ai, -a           Use AI for analysis and suggestions
-            --interactive, -i   Use interactive mode
+            stackmate customize                 Show interactive customization menu
+            stackmate customize --ai            Get AI-powered customization suggestions
         """
-        return asyncio.run(_customize(project_dir))
+        return asyncio.run(_customize(project_dir, ai))
 
     return customize
 
-async def _customize(project_dir: str):
+async def _customize(project_dir: str, ai: bool = False):
     """Async implementation of customize command."""
     if not os.path.exists(project_dir):
         raise ConfigurationError(f"Project directory '{project_dir}' does not exist")
-        
+
     try:
-        console.print(Panel.fit(
-            "[bold blue]Customizing Project[/]",
-            title="Stackmate"
-        ))
-        
-        with console.status("[bold green]Analyzing project...[/]"):
-            _, generator = get_ai_components()
-            # Add customization logic here
+        # Read package.json to analyze current project setup
+        try:
+            with open(os.path.join(project_dir, 'package.json'), 'r') as f:
+                package_json = json.load(f)
+        except FileNotFoundError:
+            raise ConfigurationError("No package.json found. Make sure you're in a Node.js project directory.")
+        except json.JSONDecodeError:
+            raise ConfigurationError("Invalid package.json file. Please check the file format.")
+
+        if ai:
+            # Use AI to analyze project and suggest customizations
+            analyzer, generator = get_ai_components()
             
-        console.print("\n[bold green]✨ Project customization completed![/]")
+            with console.status("[bold green]Analyzing project...[/]"):
+                # Analyze package.json and project structure
+                project_analysis = {
+                    "dependencies": package_json.get("dependencies", {}),
+                    "devDependencies": package_json.get("devDependencies", {}),
+                    "scripts": package_json.get("scripts", {}),
+                }
+                
+                # Get AI suggestions
+                suggestions = await analyzer.analyze_project(project_analysis)
+            
+            console.print(Panel.fit(
+                "[bold cyan]Project Analysis Results[/]",
+                title="Stackmate"
+            ))
+
+            # Display workflow improvements
+            if suggestions.get("workflow_improvements"):
+                console.print("\n[bold cyan]Workflow Improvements[/]")
+                table = Table(show_header=True)
+                table.add_column("Category", style="cyan")
+                table.add_column("Suggestion", style="white")
+                table.add_column("Priority", style="yellow")
+                table.add_column("Implementation", style="green")
+                
+                for improvement in suggestions["workflow_improvements"]:
+                    table.add_row(
+                        improvement["category"],
+                        improvement["suggestion"],
+                        improvement["priority"].upper(),
+                        improvement["implementation"]
+                    )
+                console.print(table)
+
+            # Display dependency updates
+            if suggestions.get("dependency_updates"):
+                console.print("\n[bold cyan]Dependency Updates[/]")
+                table = Table(show_header=True)
+                table.add_column("Package", style="cyan")
+                table.add_column("Current", style="yellow")
+                table.add_column("Suggested", style="green")
+                table.add_column("Reason", style="white")
+                
+                for update in suggestions["dependency_updates"]:
+                    table.add_row(
+                        update["package"],
+                        update["current_version"],
+                        update["suggested_version"],
+                        update["reason"]
+                    )
+                console.print(table)
+
+            # Display performance suggestions
+            if suggestions.get("performance_suggestions"):
+                console.print("\n[bold cyan]Performance Improvements[/]")
+                table = Table(show_header=True)
+                table.add_column("Area", style="cyan")
+                table.add_column("Issue", style="white")
+                table.add_column("Solution", style="green")
+                table.add_column("Impact", style="yellow")
+                
+                for suggestion in suggestions["performance_suggestions"]:
+                    table.add_row(
+                        suggestion["area"],
+                        suggestion["issue"],
+                        suggestion["solution"],
+                        suggestion["impact"].upper()
+                    )
+                console.print(table)
+
+            # Display developer experience improvements
+            if suggestions.get("dx_improvements"):
+                console.print("\n[bold cyan]Developer Experience Improvements[/]")
+                table = Table(show_header=True)
+                table.add_column("Category", style="cyan")
+                table.add_column("Suggestion", style="white")
+                table.add_column("Benefit", style="green")
+                
+                for improvement in suggestions["dx_improvements"]:
+                    table.add_row(
+                        improvement["category"],
+                        improvement["suggestion"],
+                        improvement["benefit"]
+                    )
+                console.print(table)
+
+            # Display best practices
+            if suggestions.get("best_practices"):
+                console.print("\n[bold cyan]Best Practices[/]")
+                table = Table(show_header=True)
+                table.add_column("Category", style="cyan")
+                table.add_column("Current State", style="yellow")
+                table.add_column("Recommendation", style="green")
+                
+                for practice in suggestions["best_practices"]:
+                    table.add_row(
+                        practice["category"],
+                        practice["current_state"],
+                        practice["recommendation"]
+                    )
+                console.print(table)
+
+            # Ask if user wants to apply any of these suggestions
+            if click.confirm("\nWould you like to apply any of these suggestions?"):
+                # Show interactive menu of available improvements
+                options = []
+                
+                # Add workflow improvements
+                for imp in suggestions.get("workflow_improvements", []):
+                    options.append((
+                        f"workflow_{imp['category']}",
+                        f"[Workflow] {imp['suggestion']} ({imp['priority'].upper()})"
+                    ))
+                
+                # Add dependency updates
+                for dep in suggestions.get("dependency_updates", []):
+                    options.append((
+                        f"dependency_{dep['package']}",
+                        f"[Dependency] Update {dep['package']} to {dep['suggested_version']}"
+                    ))
+                
+                # Add performance improvements
+                for perf in suggestions.get("performance_suggestions", []):
+                    options.append((
+                        f"performance_{perf['area']}",
+                        f"[Performance] {perf['solution']} ({perf['impact'].upper()})"
+                    ))
+                
+                # Add DX improvements
+                for dx in suggestions.get("dx_improvements", []):
+                    options.append((
+                        f"dx_{dx['category']}",
+                        f"[DX] {dx['suggestion']}"
+                    ))
+                
+                # Add best practices
+                for practice in suggestions.get("best_practices", []):
+                    options.append((
+                        f"practice_{practice['category']}",
+                        f"[Best Practice] {practice['recommendation']}"
+                    ))
+                
+                # Add exit option
+                options.append(("exit", "Exit - Return to command line"))
+
+                from .interactive import InlineSelector
+                
+                while True:
+                    # Show improvement selector
+                    selector = InlineSelector(options)
+                    improvement = selector.select()
+                    
+                    if improvement is None or improvement == "exit":
+                        break
+                    
+                    # TODO: Implement the actual application of improvements
+                    console.print("\n[yellow]Automatic improvement application is not yet implemented.[/]")
+                    console.print("[yellow]This feature will be available in a future update.[/]")
+                    
+                    if not click.confirm("\nWould you like to select another improvement?"):
+                        break
+            return
+
+        # Show interactive customization menu
+        console.print("\n[bold cyan]Stackmate Project Customization[/]")
+        console.print("[dim]Customize your project with additional features and configurations[/]\n")
+        console.print("[dim]Use ↑/↓ arrows to select an option, Enter to confirm[/]\n")
+
+        # Define customization options with descriptions
+        options = [
+            ("auth", "Authentication - Add NextAuth.js, Clerk, or Firebase"),
+            ("components", "UI Components - Add shadcn/ui or Material UI"),
+            ("tools", "Development Tools - Add ESLint, Prettier, Jest"),
+            ("deployment", "Deployment - Configure deployment settings"),
+            ("database", "Database - Add database integration"),
+            ("api", "API - Add API integration"),
+            ("testing", "Testing - Add testing setup"),
+            ("cicd", "CI/CD - Add workflow configuration"),
+            ("exit", "Exit - Return to command line")
+        ]
+
+        from .interactive import InlineSelector
+        
+        while True:
+            # Show feature selector
+            selector = InlineSelector(options)
+            feature = selector.select()
+            
+            if feature is None or feature == "exit":
+                break
+                
+            if feature in ["auth", "components", "tools"]:
+                try:
+                    feature_handler = AVAILABLE_FEATURES[feature](project_dir)
+                    await feature_handler.add()
+                except Exception as e:
+                    console.print(f"\n[red]Error:[/] Failed to add {feature}: {str(e)}")
+            else:
+                console.print("\n[yellow]This feature is not yet implemented.[/]")
+            
+            # Ask to continue only if we successfully reached this point
+            if not click.confirm("\nWould you like to make more customizations?"):
+                break
+        
     except Exception as e:
-        raise AIError(f"Failed to customize project: {str(e)}")
+        raise ConfigurationError(f"Failed to customize project: {str(e)}")
 
 def main():
     """Main entry point for the CLI."""
