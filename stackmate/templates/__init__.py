@@ -10,6 +10,7 @@ from .jamstack import JamstackTemplate
 from .custom import CustomTemplate
 from .django import DjangoTemplate
 from .flask import FlaskTemplate
+from .fastapi import FastAPITemplate
 
 # Available stack choices
 AVAILABLE_STACKS = [
@@ -19,6 +20,7 @@ AVAILABLE_STACKS = [
     'jamstack-blog',
     'django',         # Django + DRF + PostgreSQL
     'flask',          # Flask + SQLAlchemy + PostgreSQL
+    'fastapi',        # FastAPI + Pydantic
     'custom',         # AI-generated custom stack
 ]
 
@@ -30,5 +32,6 @@ TEMPLATES = {
     'jamstack-blog': JamstackTemplate,
     'django': DjangoTemplate,
     'flask': FlaskTemplate,
+    'fastapi': FastAPITemplate,
     'custom': CustomTemplate,
 } 
