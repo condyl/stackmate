@@ -121,7 +121,7 @@ async def _new(project_name: str, stack: Optional[str] = None, describe: Optiona
         console.print(f"\n[bold]Project description:[/] {describe}")
         analyzer, _ = get_ai_components()
         try:
-            analysis = await analyzer.analyze_requirements(describe)
+            template_name, analysis = await analyzer.analyze_requirements(describe)
         except Exception as e:
             raise AIError(f"Failed to analyze requirements: {str(e)}")
             
@@ -134,6 +134,9 @@ async def _new(project_name: str, stack: Optional[str] = None, describe: Optiona
             table = Table(title="Recommended Stack", show_header=True)
             table.add_column("Component", style="cyan")
             table.add_column("Selection", style="green")
+            
+            # Add selected template to the table
+            table.add_row("Template", template_name)
             
             for key, value in analysis["stack"].items():
                 if isinstance(value, list):
@@ -155,7 +158,10 @@ async def _new(project_name: str, stack: Optional[str] = None, describe: Optiona
         if click.confirm("\nWould you like to proceed with this stack?"):
             try:
                 with console.status("[bold green]Generating project...[/]"):
-                    template = TEMPLATES["custom"](project_name, analysis)
+                    if template_name == "custom":
+                        template = TEMPLATES[template_name](project_name, analysis)
+                    else:
+                        template = TEMPLATES[template_name](project_name)
                     await template.generate()
             except Exception as e:
                 raise TemplateError(f"Failed to generate project: {str(e)}")
