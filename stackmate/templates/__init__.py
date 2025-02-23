@@ -9,6 +9,7 @@ from .enterprise_react import EnterpriseReactTemplate
 from .jamstack import JamstackTemplate
 from .custom import CustomTemplate
 from .django import DjangoTemplate
+from .flask import FlaskTemplate
 
 # Available stack choices
 AVAILABLE_STACKS = [
@@ -17,6 +18,7 @@ AVAILABLE_STACKS = [
     'enterprise-react',
     'jamstack-blog',
     'django',         # Django + DRF + PostgreSQL
+    'flask',          # Flask + SQLAlchemy + PostgreSQL
     'custom',         # AI-generated custom stack
 ]
 
@@ -27,5 +29,6 @@ TEMPLATES = {
     'enterprise-react': EnterpriseReactTemplate,
     'jamstack-blog': JamstackTemplate,
     'django': DjangoTemplate,
+    'flask': FlaskTemplate,
     'custom': CustomTemplate,
 } 
