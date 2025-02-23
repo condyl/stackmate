@@ -362,12 +362,13 @@ A full-stack application built with the T3 Stack.
 ├── prisma/             # Database schema and migrations
 ├── src/
 │   ├── app/           # Next.js app router
-│   ├── server/        # Backend code
-│   │   ├── api/      # tRPC procedures
-│   │   ├── auth.ts   # Authentication setup
-│   │   └── db.ts     # Database client
-│   └── utils/        # Shared utilities
-└── public/           # Static assets
+│   │   ├── server/  # Backend code
+│   │   │   ├── api/ # tRPC procedures
+│   │   │   ├── auth.ts # Authentication setup
+│   │   │   └── db.ts # Database client
+│   │   └── utils/   # Shared utilities
+│   └── public/        # Static assets
+└── README.md          # Project documentation
 ```
 
 ## Development
@@ -442,10 +443,14 @@ next-env.d.ts
 /prisma/*.db
 /prisma/migrations/''')
 
-        print(f"\nProject {self.project_name} created successfully!")
-        print("\nNext steps:")
-        print("1. cd", self.project_name)
-        print("2. npm install")
-        print("3. Set up your environment variables in .env")
-        print("4. Initialize the database with: npx prisma generate && npx prisma db push")
-        print("5. npm run dev") 
+        # Print success message
+        self.print_success_message([
+            f"cd {self.project_name}",
+            "npm install",
+            "cp .env.example .env  # Configure your environment variables",
+            "npx prisma generate   # Generate Prisma client",
+            "npx prisma db push    # Push database schema",
+            "npm run dev",
+            "\nThen open [link]http://localhost:3000[/link] in your browser",
+            "\n[dim]Note: Make sure your database is running and configured in .env[/]"
+        ]) 

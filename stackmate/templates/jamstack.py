@@ -688,8 +688,14 @@ export function MDXContent({ code }: MDXContentProps) {
   )
 }''')
 
-        print(f"\nProject {self.project_name} created successfully!")
-        print("\nNext steps:")
-        print("1. cd", self.project_name)
-        print("2. npm install")
-        print("3. npm run dev") 
+        # Print success message
+        self.print_success_message([
+            f"cd {self.project_name}",
+            "npm install",
+            "npm run dev",
+            "\nAdditional commands:",
+            "npm run build     # Build for production",
+            "npm run preview  # Preview production build",
+            "\nThen open [link]http://localhost:3000[/link] in your browser",
+            "\n[dim]Note: Blog posts should be added to the content/posts directory[/]"
+        ]) 

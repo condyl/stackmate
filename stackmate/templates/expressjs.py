@@ -237,10 +237,11 @@ yarn-error.log*
 .DS_Store
 Thumbs.db''')
 
-        print(f"\nProject {self.project_name} created successfully!")
-        print("\nNext steps:")
-        print("1. cd", self.project_name)
-        print("2. npm install")
-        print("3. cp .env.example .env")
-        print("4. npm run dev")
-        print("\nThen open http://localhost:3000 in your browser") 
+        # Print success message
+        self.print_success_message([
+            f"cd {self.project_name}",
+            "npm install",
+            "cp .env.example .env  # Configure your environment variables",
+            "npm run dev",
+            "\nThen open [link]http://localhost:3000[/link] in your browser"
+        ]) 

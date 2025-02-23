@@ -6,7 +6,13 @@ from abc import ABC, abstractmethod
 import json
 import os
 from typing import Dict, List, Any
+from rich.console import Console
+from rich.panel import Panel
+from rich.table import Table
 from ..utils.dependency_manager import DependencyManager
+
+# Initialize rich console
+console = Console()
 
 class BaseTemplate(ABC):
     def __init__(self, project_name: str):
@@ -55,23 +61,28 @@ class BaseTemplate(ABC):
 
         # Print warnings and recommendations
         if deps_analysis["compatibility_warnings"] or deps_analysis["version_updates"]:
-            print("\nDependency Analysis:")
-            print("===================")
+            console.print()  # Add spacing
+            console.print(Panel(
+                "[bold cyan]Dependency Analysis[/]",
+                title="Stackmate",
+                title_align="left",
+                width=80
+            ))
             
             if deps_analysis["compatibility_warnings"]:
-                print("\nCompatibility Warnings:")
+                console.print("\n[bold]Compatibility Warnings:[/]")
                 for warning in deps_analysis["compatibility_warnings"]:
-                    print(f"- {warning}")
+                    console.print(f"[yellow]• {warning}[/]")
             
             if deps_analysis["version_updates"]:
-                print("\nVersion Updates:")
+                console.print("\n[bold]Version Updates:[/]")
                 for update in deps_analysis["version_updates"]:
-                    print(f"- {update}")
+                    console.print(f"[green]• {update}[/]")
             
             if deps_analysis["recommendations"]:
-                print("\nRecommendations:")
+                console.print("\n[bold]Recommendations:[/]")
                 for rec in deps_analysis["recommendations"]:
-                    print(f"- {rec}")
+                    console.print(f"[blue]• {rec}[/]")
 
         # Create package.json with optimized dependencies
         package_json = {
@@ -106,4 +117,50 @@ cache-min=3600
 audit=true
 fund=false
         """.strip()
-        self.create_file('.npmrc', npmrc_content) 
+        self.create_file('.npmrc', npmrc_content)
+
+    def print_success_message(self, additional_steps: List[str] = None):
+        """Print a standardized success message with next steps."""
+        console.print()  # Add spacing
+        console.print(Panel(
+            f"[bold green]✨ Project {self.project_name} created successfully![/]",
+            title="Stackmate",
+            title_align="left",
+            border_style="green",
+            width=80
+        ))
+        
+        if additional_steps:
+            console.print()  # Add spacing
+            table = Table(
+                title="[bold cyan]Next Steps[/]",
+                show_header=False,
+                box=None,
+                padding=(0, 2),
+                title_justify="left"
+            )
+            table.add_column(
+                "Step",
+                style="bright_white",
+                no_wrap=False
+            )
+            
+            for i, step in enumerate(additional_steps, 1):
+                if step.startswith("\n"):  # Handle spacers
+                    table.add_row("")
+                    table.add_row(step.strip())
+                else:
+                    # Add command highlighting
+                    if "#" in step:  # Handle comments
+                        cmd, comment = step.split("#", 1)
+                        table.add_row(f"[cyan]{i}.[/] [green]{cmd.strip()}[/] [dim]#{comment}[/]")
+                    else:
+                        if step.startswith("cd "):
+                            table.add_row(f"[cyan]{i}.[/] [green]{step}[/]")
+                        elif "http" in step:  # Handle URLs
+                            table.add_row(f"[cyan]{i}.[/] {step}")
+                        else:
+                            table.add_row(f"[cyan]{i}.[/] [green]{step}[/]")
+            
+            console.print(table)
+            console.print()  # Add final spacing 

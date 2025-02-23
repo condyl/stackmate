@@ -276,11 +276,12 @@ env/
 .coverage
 htmlcov/''')
 
-        print(f"\nProject {self.project_name} created successfully!")
-        print("\nNext steps:")
-        print("1. cd", self.project_name)
-        print("2. python -m venv venv")
-        print("3. source venv/bin/activate  # On Windows: venv\\Scripts\\activate")
-        print("4. pip install -r requirements.txt")
-        print("5. python app.py")
-        print("\nThen open http://localhost:5000 in your browser") 
+        # Print success message
+        self.print_success_message([
+            f"cd {self.project_name}",
+            "python -m venv venv",
+            "source venv/bin/activate  # On Windows: venv\\Scripts\\activate",
+            "pip install -r requirements.txt",
+            "python app.py",
+            "\nThen open [link]http://localhost:5000[/link] in your browser"
+        ]) 

@@ -218,11 +218,12 @@ env/
 .coverage
 htmlcov/''')
 
-        print(f"\nProject {self.project_name} created successfully!")
-        print("\nNext steps:")
-        print("1. cd", self.project_name)
-        print("2. python -m venv venv")
-        print("3. source venv/bin/activate  # On Windows: venv\\Scripts\\activate")
-        print("4. pip install -r requirements.txt")
-        print("5. uvicorn app.main:app --reload")
-        print("\nThen open http://localhost:8000/docs in your browser") 
+        # Print success message
+        self.print_success_message([
+            "cd " + self.project_name,
+            "python -m venv venv",
+            "source venv/bin/activate  # On Windows: venv\\Scripts\\activate",
+            "pip install -r requirements.txt",
+            "uvicorn app.main:app --reload",
+            "\nThen open [link]http://localhost:8000/docs[/link] in your browser"
+        ]) 

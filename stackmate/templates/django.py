@@ -612,13 +612,15 @@ This project template has been configured for Python 3.13 compatibility. However
 This project is licensed under the MIT License.
 ''')
 
-        print(f"\nProject {self.project_name} created successfully!")
-        print("\nNext steps:")
-        print("1. cd", self.project_name)
-        print("2. python -m venv venv")
-        print("3. source venv/bin/activate  # On Windows: venv\\Scripts\\activate")
-        print("4. pip install -r requirements.txt")
-        print("5. cp .env.example .env  # Configure your environment variables")
-        print("6. python manage.py migrate")
-        print("7. python manage.py runserver")
-        print("\nNote: Image processing features are currently disabled for Python 3.13 compatibility.") 
+        # Print success message
+        self.print_success_message([
+            f"cd {self.project_name}",
+            "python -m venv venv",
+            "source venv/bin/activate  # On Windows: venv\\Scripts\\activate",
+            "pip install -r requirements.txt",
+            "cp .env.example .env  # Configure your environment variables",
+            "python manage.py migrate",
+            "python manage.py runserver",
+            "\nThen open [link]http://localhost:8000[/link] in your browser",
+            "\n[dim]Note: Image processing features are currently disabled for Python 3.13 compatibility.[/]"
+        ]) 

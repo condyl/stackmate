@@ -5,7 +5,13 @@ Development tools feature handler for Stackmate.
 import os
 import json
 from typing import Dict, List
+from rich.console import Console
+from rich.panel import Panel
+from rich.table import Table
 from ..utils.dependency_manager import DependencyManager
+
+# Initialize rich console
+console = Console()
 
 async def add_tools(project_dir: str) -> None:
     """Add development tools to an existing project."""
@@ -51,15 +57,28 @@ async def add_tools(project_dir: str) -> None:
         # Create configuration files
         await create_tool_configs(project_dir)
         
-        print("\nDevelopment tools have been added to your project!")
-        print("\nNext steps:")
-        print("1. npm install")
-        print("2. npm run prepare  # Set up Git hooks")
-        print("3. Start using the tools:")
-        print("   - npm run test       # Run tests")
-        print("   - npm run lint       # Check code style")
-        print("   - npm run format     # Format code")
-        print("   - npm run typecheck  # Check TypeScript")
+        console.print(Panel.fit(
+            "[bold green]✨ Development tools have been added to your project![/]",
+            title="Stackmate"
+        ))
+        
+        table = Table(title="Next Steps", show_header=False)
+        table.add_column("Step", style="cyan")
+        
+        steps = [
+            "npm install",
+            "npm run prepare  # Set up Git hooks",
+            "Start using the tools:",
+            "   • [green]npm run test[/]       # Run tests",
+            "   • [green]npm run lint[/]       # Check code style",
+            "   • [green]npm run format[/]     # Format code",
+            "   • [green]npm run typecheck[/]  # Check TypeScript"
+        ]
+        
+        for i, step in enumerate(steps, 1):
+            table.add_row(f"{i}. {step}")
+        
+        console.print(table)
     except Exception as e:
         raise Exception(f"Failed to add development tools: {str(e)}")
 

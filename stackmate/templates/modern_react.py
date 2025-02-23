@@ -226,8 +226,10 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts''')
 
-        print(f"\nProject {self.project_name} created successfully!")
-        print("\nNext steps:")
-        print("1. cd", self.project_name)
-        print("2. npm install")
-        print("3. npm run dev") 
+        # Print success message
+        self.print_success_message([
+            "cd " + self.project_name,
+            "npm install",
+            "npm run dev",
+            "\nThen open [link]http://localhost:3000[/link] in your browser"
+        ]) 

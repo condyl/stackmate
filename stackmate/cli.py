@@ -4,9 +4,17 @@ import json
 import asyncio
 from typing import Optional
 from functools import wraps
+from rich.console import Console
+from rich.panel import Panel
+from rich.markdown import Markdown
+from rich.syntax import Syntax
+from rich.table import Table
 from .templates import TEMPLATES, AVAILABLE_STACKS
 from .ai import StackAnalyzer, CodeGenerator
 from .features import AVAILABLE_FEATURES
+
+# Initialize rich console
+console = Console()
 
 class StackmateError(Exception):
     """Base exception for Stackmate errors."""
@@ -38,24 +46,24 @@ def handle_errors(func):
                 return asyncio.run(result)
             return result
         except ConfigurationError as e:
-            click.echo(f"Configuration Error: {str(e)}", err=True)
-            click.echo("Please check your configuration and try again.", err=True)
+            console.print(f"\n[red]Configuration Error:[/] {str(e)}")
+            console.print("[yellow]Please check your configuration and try again.[/]")
             return 1
         except AIError as e:
-            click.echo(f"AI Error: {str(e)}", err=True)
-            click.echo("Please check your API key and internet connection.", err=True)
+            console.print(f"\n[red]AI Error:[/] {str(e)}")
+            console.print("[yellow]Please check your API key and internet connection.[/]")
             return 1
         except TemplateError as e:
-            click.echo(f"Template Error: {str(e)}", err=True)
-            click.echo("Please check the template configuration and try again.", err=True)
+            console.print(f"\n[red]Template Error:[/] {str(e)}")
+            console.print("[yellow]Please check the template configuration and try again.[/]")
             return 1
         except FeatureError as e:
-            click.echo(f"Feature Error: {str(e)}", err=True)
-            click.echo("Please check the feature requirements and try again.", err=True)
+            console.print(f"\n[red]Feature Error:[/] {str(e)}")
+            console.print("[yellow]Please check the feature requirements and try again.[/]")
             return 1
         except Exception as e:
-            click.echo(f"Unexpected Error: {str(e)}", err=True)
-            click.echo("Please report this issue on GitHub.", err=True)
+            console.print(f"\n[red]Unexpected Error:[/] {str(e)}")
+            console.print("[yellow]Please report this issue on GitHub.[/]")
             return 1
     return wrapper
 
@@ -105,59 +113,87 @@ async def _new(project_name: str, stack: Optional[str] = None, describe: Optiona
     if os.path.exists(project_name):
         raise ConfigurationError(f"Directory '{project_name}' already exists")
         
-    click.echo(f"Creating new project: {project_name}")
+    console.print(Panel.fit(
+        f"[bold blue]Creating New Project: {project_name}[/]"
+    ))
     
     if describe:
-        click.echo(f"Project description: {describe}")
+        console.print(f"\n[bold]Project description:[/] {describe}")
         analyzer, _ = get_ai_components()
         try:
             analysis = await analyzer.analyze_requirements(describe)
         except Exception as e:
             raise AIError(f"Failed to analyze requirements: {str(e)}")
             
-        click.echo("\nAI Analysis Results:")
-        click.echo("===================")
+        console.print(Panel.fit(
+            "[bold cyan]AI Analysis Results[/]",
+            title="Stackmate"
+        ))
         
         if "stack" in analysis:
-            click.echo("\nRecommended Stack:")
+            table = Table(title="Recommended Stack", show_header=True)
+            table.add_column("Component", style="cyan")
+            table.add_column("Selection", style="green")
+            
             for key, value in analysis["stack"].items():
                 if isinstance(value, list):
-                    click.echo(f"- {key}: {', '.join(value)}")
+                    table.add_row(key.title(), ", ".join(value))
                 else:
-                    click.echo(f"- {key}: {value}")
+                    table.add_row(key.title(), str(value))
+            console.print(table)
         
         if "reasoning" in analysis:
-            click.echo("\nReasoning:")
+            console.print("\n[bold cyan]Reasoning:[/]")
             for key, value in analysis["reasoning"].items():
-                click.echo(f"- {key}: {value}")
+                console.print(f"[green]• {key}:[/] {value}")
         
         if "additional_considerations" in analysis:
-            click.echo("\nAdditional Considerations:")
+            console.print("\n[bold cyan]Additional Considerations:[/]")
             for consideration in analysis["additional_considerations"]:
-                click.echo(f"- {consideration}")
+                console.print(f"[yellow]• {consideration}[/]")
         
         if click.confirm("\nWould you like to proceed with this stack?"):
             try:
-                template = TEMPLATES["custom"](project_name, analysis)
-                await template.generate()
+                with console.status("[bold green]Generating project...[/]"):
+                    template = TEMPLATES["custom"](project_name, analysis)
+                    await template.generate()
             except Exception as e:
                 raise TemplateError(f"Failed to generate project: {str(e)}")
             
     elif stack:
-        click.echo(f"Using stack template: {stack}")
+        console.print(f"\n[bold]Using stack template:[/] [green]{stack}[/]")
         try:
-            template_class = TEMPLATES[stack]
-            template = template_class(project_name)
-            await template.generate()
+            with console.status("[bold green]Generating project...[/]"):
+                template_class = TEMPLATES[stack]
+                template = template_class(project_name)
+                await template.generate()
         except KeyError:
             raise TemplateError(f"Unknown stack template: {stack}")
         except Exception as e:
             raise TemplateError(f"Failed to generate project: {str(e)}")
     else:
-        click.echo("No stack specified. Please use --stack or --describe option.")
-        click.echo("\nAvailable stacks:")
-        for available_stack in AVAILABLE_STACKS:
-            click.echo(f"- {available_stack}")
+        console.print("\n[yellow]No stack specified. Please use --stack or --describe option.[/]")
+        
+        table = Table(title="Available Stacks", show_header=True)
+        table.add_column("Stack", style="cyan")
+        table.add_column("Description", style="green")
+        
+        stack_descriptions = {
+            'modern-react': 'Next.js + Tailwind + Shadcn',
+            't3': 'Full-Stack T3 Stack (Next.js, tRPC, Prisma, NextAuth)',
+            'enterprise-react': 'Enterprise-grade React setup',
+            'jamstack-blog': 'JAMstack blog with MDX and Contentlayer',
+            'django': 'Django + DRF + PostgreSQL',
+            'flask': 'Flask + SQLAlchemy + PostgreSQL',
+            'fastapi': 'FastAPI + Pydantic',
+            'expressjs': 'Express.js + Node.js',
+            'custom': 'AI-generated custom stack based on requirements'
+        }
+        
+        for stack_name in AVAILABLE_STACKS:
+            table.add_row(stack_name, stack_descriptions.get(stack_name, ''))
+        
+        console.print(table)
 
 def add_command():
     @cli.command()
@@ -179,14 +215,20 @@ async def _add(feature: str, project_dir: str):
         raise ConfigurationError(f"No package.json found in '{project_dir}'. Is this a Node.js project?")
         
     try:
-        feature_handler = AVAILABLE_FEATURES[feature](project_dir)
-        await feature_handler.add()
+        console.print(Panel.fit(
+            f"[bold blue]Adding {feature} to project[/]",
+            title="Stackmate"
+        ))
+        
+        with console.status(f"[bold green]Adding {feature}...[/]"):
+            feature_handler = AVAILABLE_FEATURES[feature](project_dir)
+            await feature_handler.add()
     except KeyError:
         raise FeatureError(f"Unknown feature: {feature}")
     except Exception as e:
         raise FeatureError(f"Failed to add feature: {str(e)}")
         
-    click.echo(f"\n✨ Successfully added {feature} to your project!")
+    console.print(f"\n[bold green]✨ Successfully added {feature} to your project![/]")
 
 def customize_command():
     @cli.command()
@@ -204,9 +246,16 @@ async def _customize(project_dir: str):
         raise ConfigurationError(f"Project directory '{project_dir}' does not exist")
         
     try:
-        _, generator = get_ai_components()
-        # Add customization logic here
-        click.echo("Project customization completed!")
+        console.print(Panel.fit(
+            "[bold blue]Customizing Project[/]",
+            title="Stackmate"
+        ))
+        
+        with console.status("[bold green]Analyzing project...[/]"):
+            _, generator = get_ai_components()
+            # Add customization logic here
+            
+        console.print("\n[bold green]✨ Project customization completed![/]")
     except Exception as e:
         raise AIError(f"Failed to customize project: {str(e)}")
 
@@ -218,10 +267,10 @@ def main():
     try:
         cli()
     except KeyboardInterrupt:
-        print("\nOperation cancelled by user")
+        console.print("\n[yellow]Operation cancelled by user[/]")
         return 1
     except Exception as e:
-        print(f"\nError: {str(e)}")
+        console.print(f"\n[red]Error:[/] {str(e)}")
         return 1
     return 0
 

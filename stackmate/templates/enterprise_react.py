@@ -538,12 +538,14 @@ type Story = StoryObj<typeof AppBar>;
 
 export const Default: Story = {};''')
 
-        print(f"\nProject {self.project_name} created successfully!")
-        print("\nNext steps:")
-        print("1. cd", self.project_name)
-        print("2. npm install")
-        print("3. npm run dev")
-        print("\nAdditional commands:")
-        print("- npm run storybook    # Start Storybook")
-        print("- npm test            # Run tests")
-        print("- npm run cypress     # Run E2E tests") 
+        # Print success message
+        self.print_success_message([
+            f"cd {self.project_name}",
+            "npm install",
+            "npm run dev",
+            "\nAdditional commands:",
+            "npm run storybook  # Start Storybook development server",
+            "npm test          # Run unit tests",
+            "npm run cypress   # Run end-to-end tests",
+            "\nThen open [link]http://localhost:3000[/link] in your browser"
+        ]) 
