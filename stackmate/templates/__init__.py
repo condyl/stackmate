@@ -11,6 +11,7 @@ from .custom import CustomTemplate
 from .django import DjangoTemplate
 from .flask import FlaskTemplate
 from .fastapi import FastAPITemplate
+from .expressjs import ExpressTemplate
 
 # Available stack choices
 AVAILABLE_STACKS = [
@@ -21,6 +22,7 @@ AVAILABLE_STACKS = [
     'django',         # Django + DRF + PostgreSQL
     'flask',          # Flask + SQLAlchemy + PostgreSQL
     'fastapi',        # FastAPI + Pydantic
+    'expressjs',      # Express.js + Node.js
     'custom',         # AI-generated custom stack
 ]
 
@@ -33,5 +35,6 @@ TEMPLATES = {
     'django': DjangoTemplate,
     'flask': FlaskTemplate,
     'fastapi': FastAPITemplate,
+    'expressjs': ExpressTemplate,
     'custom': CustomTemplate,
 } 
