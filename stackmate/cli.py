@@ -245,21 +245,11 @@ def add_command():
                  help='Project directory (defaults to current directory)')
     @handle_errors
     def add(feature: str, project_dir: str):
-        """Add a feature to an existing project.
-
-        Examples:
-            stackmate add auth              Add authentication
-            stackmate add components        Add UI components
-            stackmate add tools             Add development tools
-
-        Available Features:
-            auth        Authentication (NextAuth.js, Clerk, or Firebase)
-            components  UI components (shadcn/ui or Material UI)
-            tools      Development tools (ESLint, Prettier, Jest)
-        
-        Options:
-            --project-dir, -d  Specify project directory (default: current directory)
-        """
+        """Add a feature to an existing project."""
+        console.print(Panel.fit(
+            f"[bold blue]Adding {feature} to project[/]",
+            title="Stackmate"
+        ))
         return asyncio.run(_add(feature, project_dir))
 
     return add
@@ -269,24 +259,13 @@ async def _add(feature: str, project_dir: str):
     if not os.path.exists(project_dir):
         raise ConfigurationError(f"Project directory '{project_dir}' does not exist")
         
-    if not os.path.exists(os.path.join(project_dir, 'package.json')):
-        raise ConfigurationError(f"No package.json found in '{project_dir}'. Is this a Node.js project?")
-        
     try:
-        console.print(Panel.fit(
-            f"[bold blue]Adding {feature} to project[/]",
-            title="Stackmate"
-        ))
-        
-        with console.status(f"[bold green]Adding {feature}...[/]"):
-            feature_handler = AVAILABLE_FEATURES[feature](project_dir)
-            await feature_handler.add()
+        feature_handler = AVAILABLE_FEATURES[feature](project_dir)
+        await feature_handler.add()
     except KeyError:
         raise FeatureError(f"Unknown feature: {feature}")
     except Exception as e:
         raise FeatureError(f"Failed to add feature: {str(e)}")
-        
-    console.print(f"\n[bold green]✨ Successfully added {feature} to your project![/]")
 
 def customize_command():
     @cli.command()

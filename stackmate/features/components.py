@@ -4,8 +4,40 @@ Components feature handler for Stackmate.
 
 import os
 import json
-from typing import Dict, List
+from typing import Dict, List, Tuple
+from rich.console import Console
+from rich.panel import Panel
 from ..utils.dependency_manager import DependencyManager
+
+# Initialize rich console for consistent styling
+console = Console()
+
+async def is_components_installed(project_dir: str, ui_framework: str) -> Tuple[bool, str]:
+    """Check if UI components are already installed."""
+    try:
+        with open(os.path.join(project_dir, 'package.json'), 'r') as f:
+            package_json = json.load(f)
+            deps = package_json.get('dependencies', {})
+            
+            if ui_framework == "mui" and "@mui/material" in deps:
+                return True, "Material UI is already installed"
+            elif ui_framework == "shadcn":
+                if all(dep in deps for dep in ["tailwindcss", "class-variance-authority", "clsx"]):
+                    return True, "Shadcn UI dependencies are already installed"
+    except FileNotFoundError:
+        return False, "No package.json found"
+    
+    # Check for configuration files
+    config_files = {
+        "shadcn": ["components.json", "src/lib/utils.ts"],
+        "mui": ["src/theme/index.ts"]  # Common MUI theme configuration file
+    }
+    
+    for file in config_files.get(ui_framework, []):
+        if os.path.exists(os.path.join(project_dir, file)):
+            return True, f"UI component configuration found in {file}"
+    
+    return False, ""
 
 async def add_components(project_dir: str) -> None:
     """Add UI components to an existing project."""
@@ -14,35 +46,55 @@ async def add_components(project_dir: str) -> None:
         with open(os.path.join(project_dir, 'package.json'), 'r') as f:
             package_json = json.load(f)
     except FileNotFoundError:
-        raise Exception("No package.json found. Make sure you're in a Node.js project directory.")
+        console.print("\n[red]Error:[/] No package.json found. Make sure you're in a Node.js project directory.")
+        return
+    except json.JSONDecodeError:
+        console.print("\n[red]Error:[/] Invalid package.json file. Please check the file format.")
+        return
 
     deps = package_json.get('dependencies', {})
     
     # Determine UI framework based on existing dependencies
     ui_framework = determine_ui_framework(deps)
     
-    # Initialize dependency manager
-    dep_manager = DependencyManager()
+    # Check if components are already installed
+    is_installed, message = await is_components_installed(project_dir, ui_framework)
+    if is_installed:
+        console.print(f"\n[yellow]UI Components are already installed:[/] {message}")
+        console.print("\n[blue]No changes were made to your project.[/]")
+        return
     
-    # Add required dependencies based on UI framework
-    new_deps = await get_component_dependencies(ui_framework, dep_manager)
-    
-    # Update package.json
-    package_json['dependencies'].update(new_deps)
-    with open(os.path.join(project_dir, 'package.json'), 'w') as f:
-        json.dump(package_json, f, indent=2)
-    
-    # Create component files and configurations
-    await create_component_files(project_dir, ui_framework)
-    
-    print(f"\nUI Components ({ui_framework}) have been added to your project!")
-    print("\nNext steps:")
-    print("1. npm install")
-    if ui_framework == "shadcn":
-        print("2. Add components using: npx shadcn-ui@latest add <component-name>")
-    elif ui_framework == "mui":
-        print("2. Import components from @mui/material")
-    print("3. Check the documentation for usage examples")
+    try:
+        with console.status("[bold green]Adding UI components...[/]"):
+            # Initialize dependency manager
+            dep_manager = DependencyManager()
+            
+            # Add required dependencies based on UI framework
+            new_deps = await get_component_dependencies(ui_framework, dep_manager)
+            
+            # Update package.json
+            package_json['dependencies'].update(new_deps)
+            with open(os.path.join(project_dir, 'package.json'), 'w') as f:
+                json.dump(package_json, f, indent=2)
+            
+            # Create component files and configurations
+            await create_component_files(project_dir, ui_framework)
+        
+        console.print(f"\n[bold green]✨ UI Components ({ui_framework}) have been added to your project![/]")
+        console.print("\n[bold]Next steps:[/]")
+        console.print("1. [cyan]npm install[/]")
+        
+        if ui_framework == "shadcn":
+            console.print("2. [cyan]Add components using: npx shadcn-ui@latest add <component-name>[/]")
+        elif ui_framework == "mui":
+            console.print("2. [cyan]Import components from @mui/material[/]")
+        
+        console.print("3. [cyan]Check the documentation for usage examples[/]")
+        
+    except Exception as e:
+        console.print(f"\n[red]Error:[/] Failed to add UI components: {str(e)}")
+        console.print("\n[yellow]Your project may be in an inconsistent state. Please check the changes made.[/]")
+        return
 
 def determine_ui_framework(deps: Dict[str, str]) -> str:
     """Determine the best UI framework based on existing dependencies."""

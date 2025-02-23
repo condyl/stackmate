@@ -4,8 +4,43 @@ Authentication feature handler for Stackmate.
 
 import os
 import json
-from typing import Dict, Optional
+from typing import Dict, Optional, Tuple
+from rich.console import Console
+from rich.panel import Panel
 from ..utils.dependency_manager import DependencyManager
+
+# Initialize rich console for consistent styling
+console = Console()
+
+async def is_auth_installed(project_dir: str, strategy: str) -> Tuple[bool, str]:
+    """Check if authentication is already installed."""
+    # Check package.json for auth-related dependencies
+    try:
+        with open(os.path.join(project_dir, 'package.json'), 'r') as f:
+            package_json = json.load(f)
+            deps = package_json.get('dependencies', {})
+            
+            if strategy == "next-auth" and "next-auth" in deps:
+                return True, "NextAuth.js is already installed"
+            elif strategy == "clerk" and "@clerk/nextjs" in deps:
+                return True, "Clerk is already installed"
+            elif strategy == "firebase" and "firebase" in deps:
+                return True, "Firebase Auth is already installed"
+    except FileNotFoundError:
+        return False, "No package.json found"
+    
+    # Check for configuration files
+    auth_files = {
+        "next-auth": ["src/app/api/auth/[...nextauth]/route.ts", "src/lib/auth.ts"],
+        "clerk": ["middleware.ts", "src/lib/auth.ts"],
+        "firebase": ["src/lib/firebase.ts", "src/lib/auth-hooks.ts"]
+    }
+    
+    for file in auth_files.get(strategy, []):
+        if os.path.exists(os.path.join(project_dir, file)):
+            return True, f"Auth configuration found in {file}"
+    
+    return False, ""
 
 async def add_auth(project_dir: str) -> None:
     """Add authentication to an existing project."""
@@ -14,37 +49,56 @@ async def add_auth(project_dir: str) -> None:
         with open(os.path.join(project_dir, 'package.json'), 'r') as f:
             package_json = json.load(f)
     except FileNotFoundError:
-        raise Exception("No package.json found. Make sure you're in a Node.js project directory.")
+        console.print("\n[red]Error:[/] No package.json found. Make sure you're in a Node.js project directory.")
+        return
+    except json.JSONDecodeError:
+        console.print("\n[red]Error:[/] Invalid package.json file. Please check the file format.")
+        return
 
     deps = package_json.get('dependencies', {})
     
     # Determine the auth strategy based on existing dependencies
     auth_strategy = determine_auth_strategy(deps)
     
-    # Initialize dependency manager
-    dep_manager = DependencyManager()
+    # Check if auth is already installed
+    is_installed, message = await is_auth_installed(project_dir, auth_strategy)
+    if is_installed:
+        console.print(f"\n[yellow]Authentication is already installed:[/] {message}")
+        console.print("\n[blue]No changes were made to your project.[/]")
+        return
     
-    # Add required dependencies based on auth strategy
-    new_deps = await get_auth_dependencies(auth_strategy, dep_manager)
-    
-    # Update package.json
-    package_json['dependencies'].update(new_deps)
-    with open(os.path.join(project_dir, 'package.json'), 'w') as f:
-        json.dump(package_json, f, indent=2)
-    
-    # Create auth configuration files
-    await create_auth_config(project_dir, auth_strategy)
-    
-    print(f"\nAuthentication ({auth_strategy}) has been added to your project!")
-    print("\nNext steps:")
-    print("1. npm install")
-    print("2. Configure your environment variables")
-    if auth_strategy == "next-auth":
-        print("3. Add your OAuth providers in src/app/api/auth/[...nextauth]/route.ts")
-    elif auth_strategy == "clerk":
-        print("3. Set up your Clerk Dashboard and add your API keys")
-    elif auth_strategy == "firebase":
-        print("3. Add your Firebase configuration in src/lib/firebase.ts")
+    try:
+        with console.status("[bold green]Adding authentication...[/]"):
+            # Initialize dependency manager
+            dep_manager = DependencyManager()
+            
+            # Add required dependencies based on auth strategy
+            new_deps = await get_auth_dependencies(auth_strategy, dep_manager)
+            
+            # Update package.json
+            package_json['dependencies'].update(new_deps)
+            with open(os.path.join(project_dir, 'package.json'), 'w') as f:
+                json.dump(package_json, f, indent=2)
+            
+            # Create auth configuration files
+            await create_auth_config(project_dir, auth_strategy)
+        
+        console.print(f"\n[bold green]✨ Authentication ({auth_strategy}) has been added to your project![/]")
+        console.print("\n[bold]Next steps:[/]")
+        console.print("1. [cyan]npm install[/]")
+        console.print("2. [cyan]Configure your environment variables[/]")
+        
+        if auth_strategy == "next-auth":
+            console.print("3. [cyan]Add your OAuth providers in src/app/api/auth/[...nextauth]/route.ts[/]")
+        elif auth_strategy == "clerk":
+            console.print("3. [cyan]Set up your Clerk Dashboard and add your API keys[/]")
+        elif auth_strategy == "firebase":
+            console.print("3. [cyan]Add your Firebase configuration in src/lib/firebase.ts[/]")
+            
+    except Exception as e:
+        console.print(f"\n[red]Error:[/] Failed to add authentication: {str(e)}")
+        console.print("\n[yellow]Your project may be in an inconsistent state. Please check the changes made.[/]")
+        return
 
 def determine_auth_strategy(deps: Dict[str, str]) -> str:
     """Determine the best auth strategy based on existing dependencies."""

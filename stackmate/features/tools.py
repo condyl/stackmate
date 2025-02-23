@@ -4,14 +4,46 @@ Development tools feature handler for Stackmate.
 
 import os
 import json
-from typing import Dict, List
+from typing import Dict, List, Tuple
 from rich.console import Console
 from rich.panel import Panel
 from rich.table import Table
 from ..utils.dependency_manager import DependencyManager
 
-# Initialize rich console
+# Initialize rich console for consistent styling
 console = Console()
+
+async def is_tools_installed(project_dir: str) -> Tuple[bool, str]:
+    """Check if development tools are already installed."""
+    try:
+        with open(os.path.join(project_dir, 'package.json'), 'r') as f:
+            package_json = json.load(f)
+            dev_deps = package_json.get('devDependencies', {})
+            
+            # Check for core development tools
+            core_tools = ["typescript", "eslint", "prettier", "jest"]
+            installed_tools = [tool for tool in core_tools if tool in dev_deps]
+            
+            if installed_tools:
+                return True, f"Development tools already installed: {', '.join(installed_tools)}"
+    except FileNotFoundError:
+        return False, "No package.json found"
+    
+    # Check for configuration files
+    config_files = [
+        ".eslintrc.js",
+        ".eslintrc.json",
+        ".prettierrc",
+        ".prettierrc.js",
+        "jest.config.js",
+        "tsconfig.json"
+    ]
+    
+    existing_configs = [file for file in config_files if os.path.exists(os.path.join(project_dir, file))]
+    if existing_configs:
+        return True, f"Tool configurations found: {', '.join(existing_configs)}"
+    
+    return False, ""
 
 async def add_tools(project_dir: str) -> None:
     """Add development tools to an existing project."""
@@ -21,66 +53,79 @@ async def add_tools(project_dir: str) -> None:
             with open(os.path.join(project_dir, 'package.json'), 'r') as f:
                 package_json = json.load(f)
         except FileNotFoundError:
-            raise Exception("No package.json found. Make sure you're in a Node.js project directory.")
+            console.print("\n[red]Error:[/] No package.json found. Make sure you're in a Node.js project directory.")
+            return
+        except json.JSONDecodeError:
+            console.print("\n[red]Error:[/] Invalid package.json file. Please check the file format.")
+            return
 
         deps = package_json.get('dependencies', {})
         dev_deps = package_json.get('devDependencies', {})
         
-        # Initialize dependency manager
-        dep_manager = DependencyManager()
+        # Check if tools are already installed
+        is_installed, message = await is_tools_installed(project_dir)
+        if is_installed:
+            console.print(f"\n[yellow]Development tools are already installed:[/] {message}")
+            console.print("\n[blue]No changes were made to your project.[/]")
+            return
         
-        # Add required development tools
-        new_dev_deps = await get_dev_tool_dependencies(deps, dev_deps, dep_manager)
-        
-        # Update package.json
-        if 'devDependencies' not in package_json:
-            package_json['devDependencies'] = {}
-        package_json['devDependencies'].update(new_dev_deps)
-        
-        # Add scripts
-        if 'scripts' not in package_json:
-            package_json['scripts'] = {}
-        package_json['scripts'].update({
-            "test": "jest",
-            "test:watch": "jest --watch",
-            "test:coverage": "jest --coverage",
-            "lint": "eslint . --ext .js,.jsx,.ts,.tsx",
-            "lint:fix": "eslint . --ext .js,.jsx,.ts,.tsx --fix",
-            "format": "prettier --write .",
-            "prepare": "husky install",
-            "typecheck": "tsc --noEmit",
-        })
-        
-        with open(os.path.join(project_dir, 'package.json'), 'w') as f:
-            json.dump(package_json, f, indent=2)
-        
-        # Create configuration files
-        await create_tool_configs(project_dir)
-        
-        console.print(Panel.fit(
-            "[bold green]✨ Development tools have been added to your project![/]",
-            title="Stackmate"
-        ))
-        
-        table = Table(title="Next Steps", show_header=False)
-        table.add_column("Step", style="cyan")
-        
-        steps = [
-            "npm install",
-            "npm run prepare  # Set up Git hooks",
-            "Start using the tools:",
-            "   • [green]npm run test[/]       # Run tests",
-            "   • [green]npm run lint[/]       # Check code style",
-            "   • [green]npm run format[/]     # Format code",
-            "   • [green]npm run typecheck[/]  # Check TypeScript"
-        ]
-        
-        for i, step in enumerate(steps, 1):
-            table.add_row(f"{i}. {step}")
-        
-        console.print(table)
+        try:
+            with console.status("[bold green]Adding development tools...[/]"):
+                # Initialize dependency manager
+                dep_manager = DependencyManager()
+                
+                # Add required development tools
+                new_dev_deps = await get_dev_tool_dependencies(deps, dev_deps, dep_manager)
+                
+                # Update package.json
+                if 'devDependencies' not in package_json:
+                    package_json['devDependencies'] = {}
+                package_json['devDependencies'].update(new_dev_deps)
+                
+                # Add scripts if they don't exist
+                if 'scripts' not in package_json:
+                    package_json['scripts'] = {}
+                    
+                # Only add scripts that don't exist
+                scripts_to_add = {
+                    "test": "jest",
+                    "test:watch": "jest --watch",
+                    "test:coverage": "jest --coverage",
+                    "lint": "eslint . --ext .js,.jsx,.ts,.tsx",
+                    "lint:fix": "eslint . --ext .js,.jsx,.ts,.tsx --fix",
+                    "format": "prettier --write .",
+                    "prepare": "husky install",
+                    "typecheck": "tsc --noEmit",
+                }
+                
+                for script_name, script_cmd in scripts_to_add.items():
+                    if script_name not in package_json['scripts']:
+                        package_json['scripts'][script_name] = script_cmd
+                
+                with open(os.path.join(project_dir, 'package.json'), 'w') as f:
+                    json.dump(package_json, f, indent=2)
+                
+                # Create configuration files
+                await create_tool_configs(project_dir)
+            
+            console.print("\n[bold green]✨ Development tools have been added to your project![/]")
+            console.print("\n[bold]Next steps:[/]")
+            console.print("1. [cyan]npm install[/]")
+            console.print("2. [cyan]npm run prepare[/] (to set up Git hooks)")
+            console.print("\n[bold]Start using the tools with:[/]")
+            console.print("• [cyan]npm run lint[/]     - Check code style")
+            console.print("• [cyan]npm run test[/]     - Run tests")
+            console.print("• [cyan]npm run format[/]   - Format code")
+            console.print("• [cyan]npm run typecheck[/] - Check TypeScript")
+            
+        except Exception as e:
+            console.print(f"\n[red]Error:[/] Failed to add development tools: {str(e)}")
+            console.print("\n[yellow]Your project may be in an inconsistent state. Please check the changes made.[/]")
+            return
+            
     except Exception as e:
-        raise Exception(f"Failed to add development tools: {str(e)}")
+        console.print(f"\n[red]Error:[/] {str(e)}")
+        return
 
 async def get_dev_tool_dependencies(deps: Dict[str, str], dev_deps: Dict[str, str], dep_manager: DependencyManager) -> Dict[str, str]:
     """Get required development tool dependencies."""
