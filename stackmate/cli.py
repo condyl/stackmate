@@ -12,6 +12,7 @@ from rich.table import Table
 from .templates import TEMPLATES, AVAILABLE_STACKS
 from .ai import StackAnalyzer, CodeGenerator
 from .features import AVAILABLE_FEATURES
+from .interactive import run as run_interactive
 
 # Initialize rich console
 console = Console()
@@ -95,12 +96,17 @@ def cli():
 
 def new_command():
     @cli.command()
-    @click.argument('project_name')
+    @click.argument('project_name', required=False)
     @click.option('--stack', type=click.Choice(AVAILABLE_STACKS), help='Choose a predefined stack template')
     @click.option('--describe', help='Describe your project requirements in natural language')
+    @click.option('--interactive', '-i', is_flag=True, help='Use interactive mode')
     @handle_errors
-    def new(project_name: str, stack: Optional[str] = None, describe: Optional[str] = None):
+    def new(project_name: str = None, stack: Optional[str] = None, describe: Optional[str] = None, interactive: bool = False):
         """Create a new project with the specified stack."""
+        if interactive:
+            return run_interactive()
+        elif not project_name:
+            raise ConfigurationError("Project name is required when not using interactive mode")
         return asyncio.run(_new(project_name, stack, describe))
 
     return new
