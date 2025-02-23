@@ -1,0 +1,19 @@
+# Core Dependencies
+click>=8.0.0  # CLI interface
+google-generativeai>=0.3.0  # Gemini API integration
+rich>=13.0.0  # Terminal UI
+textual>=0.47.1  # Interactive TUI
+jinja2>=3.0.0  # Template rendering
+pyyaml>=6.0.0  # Configuration management
+gitpython>=3.1.0  # Git integration
+aiohttp>=3.9.0  # Async HTTP client
+prompt_toolkit>=3.0.0  # Interactive prompts
+
+# Development Dependencies
+pytest>=7.4.3  # Testing
+black>=23.12.1  # Code formatting
+flake8>=6.1.0  # Code linting
+isort>=5.13.2  # Import sorting
+pytest-cov>=4.1.0  # Test coverage
+pytest-asyncio>=0.23.0  # Async test support 
+semver>=3.0.0  # Semantic versioning
