@@ -59,31 +59,6 @@ class BaseTemplate(ABC):
         deps_analysis = await self.dependency_manager.analyze_dependencies(self.dependencies)
         dev_deps_analysis = await self.dependency_manager.analyze_dependencies(self.dev_dependencies)
 
-        # Print warnings and recommendations
-        if deps_analysis["compatibility_warnings"] or deps_analysis["version_updates"]:
-            console.print()  # Add spacing
-            console.print(Panel(
-                "[bold cyan]Dependency Analysis[/]",
-                title="Stackmate",
-                title_align="left",
-                width=80
-            ))
-            
-            if deps_analysis["compatibility_warnings"]:
-                console.print("\n[bold]Compatibility Warnings:[/]")
-                for warning in deps_analysis["compatibility_warnings"]:
-                    console.print(f"[yellow]• {warning}[/]")
-            
-            if deps_analysis["version_updates"]:
-                console.print("\n[bold]Version Updates:[/]")
-                for update in deps_analysis["version_updates"]:
-                    console.print(f"[green]• {update}[/]")
-            
-            if deps_analysis["recommendations"]:
-                console.print("\n[bold]Recommendations:[/]")
-                for rec in deps_analysis["recommendations"]:
-                    console.print(f"[blue]• {rec}[/]")
-
         # Create package.json with optimized dependencies
         package_json = {
             "name": self.project_name,

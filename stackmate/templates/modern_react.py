@@ -9,30 +9,39 @@ class ModernReactTemplate(BaseTemplate):
     @property
     def dependencies(self) -> dict:
         return {
-            "next": "^14.0.0",
-            "react": "^18.2.0",
-            "react-dom": "^18.2.0",
-            "@tailwindcss/typography": "^0.5.10",
-            "tailwindcss": "^3.4.0",
-            "postcss": "^8.4.31",
-            "autoprefixer": "^10.4.16",
-            "@radix-ui/react-icons": "^1.3.0",
-            "class-variance-authority": "^0.7.0",
-            "clsx": "^2.0.0",
-            "tailwind-merge": "^2.0.0",
+            # Core dependencies (Next.js 14.1.0 peer dependencies)
+            "next": "14.1.0",
+            "react": "18.2.0",
+            "react-dom": "18.2.0",
+            
+            # Styling dependencies (Tailwind ecosystem)
+            "tailwindcss": "3.4.1",
+            "postcss": "8.4.35",
+            "autoprefixer": "10.4.17",
+            "@tailwindcss/typography": "0.5.10",
+            
+            # UI components and utilities
+            "@radix-ui/react-icons": "1.3.0",
+            "class-variance-authority": "0.7.0",
+            "clsx": "2.1.0",
+            "tailwind-merge": "2.2.1",
+            "lucide-react": "0.323.0"
         }
 
     @property
     def dev_dependencies(self) -> dict:
         return {
-            "typescript": "^5.0.0",
-            "@types/node": "^20.0.0",
-            "@types/react": "^18.2.0",
-            "@types/react-dom": "^18.2.0",
-            "eslint": "^8.56.0",
-            "eslint-config-next": "14.0.0",
-            "prettier": "^3.1.0",
-            "prettier-plugin-tailwindcss": "^0.5.9",
+            # TypeScript dependencies
+            "typescript": "5.3.3",
+            "@types/node": "20.11.16",
+            "@types/react": "18.2.52",
+            "@types/react-dom": "18.2.18",
+            
+            # Linting and formatting
+            "eslint": "8.56.0",
+            "eslint-config-next": "14.1.0",
+            "prettier": "3.2.5",
+            "prettier-plugin-tailwindcss": "0.5.11"
         }
 
     async def generate(self) -> None:
